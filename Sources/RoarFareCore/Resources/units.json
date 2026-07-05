@@ -1,0 +1,176 @@
+[
+  {
+    "id": "compsognathus",
+    "name": "Compsognathus",
+    "era": "triassic",
+    "sizeClass": "tiny",
+    "rarity": "common",
+    "deployCost": 60,
+    "baseStats": {
+      "maxHP": 40,
+      "attackDamage": 8,
+      "attackIntervalSeconds": 0.6,
+      "rangeUnits": 1.0,
+      "knockbackResistant": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "velociraptor",
+    "name": "Velociraptor",
+    "era": "cretaceous",
+    "sizeClass": "small",
+    "rarity": "rare",
+    "deployCost": 300,
+    "baseStats": {
+      "maxHP": 120,
+      "attackDamage": 30,
+      "attackIntervalSeconds": 0.9,
+      "rangeUnits": 1.0,
+      "knockbackResistant": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "deinonychus",
+    "name": "Deinonychus",
+    "era": "cretaceous",
+    "sizeClass": "small",
+    "rarity": "rare",
+    "deployCost": 320,
+    "baseStats": {
+      "maxHP": 130,
+      "attackDamage": 32,
+      "attackIntervalSeconds": 0.9,
+      "rangeUnits": 1.0,
+      "knockbackResistant": false
+    },
+    "evolutionBranches": [
+      {
+        "id": "pack_leader",
+        "name": "Pack Leader",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 0,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false
+        },
+        "abilityDescription": "Unlocks the Pack Hunting bonus when fielded with other raptors (see GAME_DESIGN.md §6)."
+      },
+      {
+        "id": "ambush_striker",
+        "name": "Ambush Striker",
+        "statModifiers": {
+          "maxHP": -10,
+          "attackDamage": 60,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false
+        },
+        "abilityDescription": "First attack after deployment deals bonus damage, then reverts to normal."
+      }
+    ]
+  },
+  {
+    "id": "parasaurolophus",
+    "name": "Parasaurolophus",
+    "era": "cretaceous",
+    "sizeClass": "medium",
+    "rarity": "common",
+    "deployCost": 450,
+    "baseStats": {
+      "maxHP": 320,
+      "attackDamage": 24,
+      "attackIntervalSeconds": 1.2,
+      "rangeUnits": 1.0,
+      "knockbackResistant": false
+    },
+    "evolutionBranches": [
+      {
+        "id": "herd_caller",
+        "name": "Herd Caller",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": -24,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false
+        },
+        "abilityDescription": "Loses personal damage; grants an attack-speed aura to units within 2 lane segments."
+      },
+      {
+        "id": "skull_crest_rammer",
+        "name": "Skull-Crest Rammer",
+        "statModifiers": {
+          "maxHP": 60,
+          "attackDamage": 10,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": true
+        },
+        "abilityDescription": "Gains knockback resistance and a charge attack with heavy knockback on hit."
+      }
+    ]
+  },
+  {
+    "id": "triceratops",
+    "name": "Triceratops",
+    "era": "cretaceous",
+    "sizeClass": "medium",
+    "rarity": "rare",
+    "deployCost": 500,
+    "baseStats": {
+      "maxHP": 420,
+      "attackDamage": 34,
+      "attackIntervalSeconds": 1.3,
+      "rangeUnits": 1.0,
+      "knockbackResistant": true
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "stegosaurus",
+    "name": "Stegosaurus",
+    "era": "jurassic",
+    "sizeClass": "large",
+    "rarity": "rare",
+    "deployCost": 750,
+    "baseStats": {
+      "maxHP": 700,
+      "attackDamage": 55,
+      "attackIntervalSeconds": 1.6,
+      "rangeUnits": 1.0,
+      "knockbackResistant": true
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "ankylosaurus",
+    "name": "Ankylosaurus",
+    "era": "cretaceous",
+    "sizeClass": "large",
+    "rarity": "epic",
+    "deployCost": 800,
+    "baseStats": {
+      "maxHP": 780,
+      "attackDamage": 48,
+      "attackIntervalSeconds": 1.4,
+      "rangeUnits": 1.2,
+      "knockbackResistant": true
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "tyrannosaurus_rex",
+    "name": "Tyrannosaurus Rex",
+    "era": "cretaceous",
+    "sizeClass": "apex",
+    "rarity": "legendary",
+    "deployCost": 1800,
+    "baseStats": {
+      "maxHP": 1600,
+      "attackDamage": 220,
+      "attackIntervalSeconds": 2.2,
+      "rangeUnits": 1.0,
+      "knockbackResistant": true
+    },
+    "evolutionBranches": []
+  }
+]
