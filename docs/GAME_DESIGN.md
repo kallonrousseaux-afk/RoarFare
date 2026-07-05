@@ -120,6 +120,8 @@ Reframes Battle Cats' Cat Capsule gacha as **Dig Sites**:
 
 Rate transparency and a hard pity are non-negotiable design requirements, not just a nice-to-have — App Store policy requires disclosed odds for loot-box mechanics, and a hard pity keeps the system from reading as predatory.
 
+**Full monetization spec (currencies, IAP catalog, pull costs, pity math, App Store compliance, StoreKit implementation) lives in [`docs/MONETIZATION.md`](MONETIZATION.md) — read that before building the Dig Site or purchase flow.**
+
 ---
 
 ## 8. Extinction Events (Endgame Modes)
@@ -154,7 +156,7 @@ This gives the campaign an actual narrative arc (rival dinos → environmental t
 
 ## 10. Progression & Economy Overview
 
-- **Base currencies:** Amber (in-stage deploy currency, also soft meta-currency for basic upgrades), Fossil Fragments (gacha pulls), Evolution Catalysts (biome-specific evolution material), Amber Shards (premium).
+- **Base currencies:** Amber (in-stage deploy currency, also soft meta-currency for basic upgrades), Fossil Fragments (gacha pulls), Evolution Catalysts (biome-specific evolution material), Amber Shards (premium — see [`docs/MONETIZATION.md`](MONETIZATION.md) for the full IAP catalog and gacha economy this currency drives).
 - **Unit leveling:** flat XP-based level-up using Fossil Fragments + Amber, capped per rarity tier (mirrors Battle Cats' Cat Food + XP leveling, no departure needed here — it isn't a differentiation lever worth spending novelty budget on).
 - **Stage structure:** World Map → Biome (group of ~12 stages) → Boss stage → unlocks next Biome + its Dig Site. Biomes double as both level packs and gacha-pool themes, so map progression and collection-building reinforce each other.
 - **Energy/stamina system:** standard timed-regen stamina gate per stage attempt (same as Battle Cats' Energy) — not a differentiation target, keep it standard.
@@ -181,3 +183,13 @@ This scope proves out the lane-blocking mechanic and branching evolution — the
 - **Data-driven units:** define units as Swift `Codable` structs backed by a bundled JSON (or `.plist`) table (Era, size class/BU cost, HP, damage, attack speed, range, traits, evolution branch refs) rather than hardcoding per-unit subclasses — this keeps adding the ~100+ unit roster from becoming a code-scale problem, and lets Claude generate/edit unit data as structured JSON rather than Swift code.
 - **Lane/BU collision:** model the lane as a 1D coordinate space with per-unit BU "footprint," not a full 2D physics simulation — resolve blocking as a simple occupied-width check, since real physics is unnecessary overhead for a lane game.
 - **Save data / gacha state:** local persistence via `SwiftData` (or `Codable` + file storage) is enough for an offline-first MVP; only add a backend once live-ops (banner rotation, leaderboards) is actually in scope.
+
+---
+
+## 13. Genre Alignment Notes
+
+Checked this design against current popularity patterns and standard gimmicks in the tower-defense/hero-collector gacha genre (Battle Cats, Arknights, and the broader Genshin-style gacha mainstream). Most of what's genre-standard was already covered by design (banner rotation, battle pass, seasonal events, disclosed odds — see `MONETIZATION.md` §7 for the full comparison table). Three things came out of that pass:
+
+1. **Guest Dino (support-borrow system) — recommended post-MVP addition.** Arknights' Support Unit and Fire Emblem Heroes' friend-unit systems (borrow a friend's or a random other player's high-rarity unit, free, for a single stage attempt) are consistently cited as one of the genre's best-liked features: they flatten early-game difficulty spikes without giving anything away permanently, and they double as a soft flex/social hook (seeing a friend's cool Apex-tier dino). RoarFare doesn't have this yet. It's deliberately excluded from the MVP cut (§11) since it needs a minimal backend (fetching another player's unit data) that the MVP's offline-first scope doesn't otherwise require — but it should be the first meta-feature added once a backend exists for banner rotation anyway.
+2. **Collab-ready banner framing — no build change needed now, but a naming/scope note.** Crossover events are historically Battle Cats' single biggest engagement and revenue driver. RoarFare is an original IP, so licensed collabs aren't available at launch, but the Dig Site/banner system (§7) is already generic enough to host a themed "guest era" later — either an in-universe special-event cast or an eventual licensed crossover. No structural change needed; just don't hardcode banner theming assumptions that would make a future guest-era event awkward to slot in.
+3. **No PvP/multiplayer — confirmed as a deliberate omission, not a gap.** Roughly half of new titles in the genre now ship some multiplayer feature, but Battle Cats itself has never needed one, and PvP would put competitive-balance pressure on a unit roster that's designed around collection/build-expression fantasy (§5, §6) rather than head-to-head fairness. Staying single-player-only through the MVP and likely v1 is a considered choice.
