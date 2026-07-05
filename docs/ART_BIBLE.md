@@ -112,6 +112,25 @@ Biome art should always leave the lane itself (the ground strip units walk on) i
 - **Typography:** a rounded, slightly heavy display face for headers (matches the chunky-toy unit style); a clean, high-legibility face for body/stat text — avoid any "cracked bone/fossil-textured" display fonts for body text, they fail at small sizes.
 - **World map:** illustrated, semi-isometric biome nodes on a single connected path (not a grid) — mirrors Battle Cats' chapter-map convention, which works well for signaling "linear campaign with branching side content."
 
+### 6.1 Dig Site Pull Object — the Fossil Egg
+
+The single most-repeated asset in the game (every gacha pull shows it) should be a **dinosaur egg sitting in a small dirt/straw nest**, not a generic capsule or treasure chest — it's the one place the "digging up a fossil" fantasy and the moment-to-moment gacha loop are the same image.
+
+- **Shape:** rounded but deliberately asymmetric/elongated (real theropod eggs aren't perfect ovals) — keeps it reading as organic rather than a painted-on egg shape over a generic capsule.
+- **Shell surface:** a subtle mottled/speckled texture rather than a smooth cartoon shell, consistent with the museum-specimen framing elsewhere in the UI (§6) — it should look like something just excavated, not manufactured.
+- **Rarity signaling reuses the existing rarity-frame language from §3.2 exactly, applied to the shell instead of a card border:**
+
+| Rarity | Shell treatment |
+|---|---|
+| Common | Plain grey-brown speckled shell, no glow |
+| Rare | Bronze-flecked shell, faint glow |
+| Epic | Silver-teal shell with fine crack-veins, particle sparkle |
+| Legendary | Gold/amber shell, animated glow pulsing through the crack lines, ember particles |
+
+- **The nest itself** should pick up the biome palette of whichever Dig Site it's from (§5) — an Arctic Dig egg sits in frost-dusted straw, a Volcanic Dig egg sits on cracked obsidian — so the pull screen quietly reinforces which biome pool the player is pulling from, the same way the Era palette (§3.1) reinforces unit identity elsewhere.
+- **The "Amber-Sealed Specimen" guaranteed-Legendary ticket** (`MONETIZATION.md` §3) gets its own distinct visual: the egg encased in a chunk of amber rather than sitting in a nest — a direct, literal payoff of the currency name, and it should read as visibly more premium/different from a normal pull at a glance, not just a re-skinned egg.
+- **Hatch beat:** the reveal animation is the egg physically cracking and splitting open (crack lines spreading across the shell, then the shell splitting into 2-3 pieces as the unit's chibi silhouette hops out) — see §7 for how this is deliberately kept visually distinct from the evolution-transformation glow-burst, so pulling a unit and evolving one stay two different kinds of payoff moment rather than reusing the same effect.
+
 ---
 
 ## 7. Animation Guidelines
@@ -120,6 +139,7 @@ Biome art should always leave the lane itself (the ground strip units walk on) i
 - **Attack animation "anticipation":** every unit needs a clear, readable wind-up frame before its hit connects, since players track lane state at a glance during chaotic multi-unit fights — this is a functional requirement (telegraphing), not just polish.
 - **Knockback reaction:** a unit knocked back should have a distinct squash + slide animation, since knockback is a core mechanic tied to the BU/lane-jam system (§4 of design doc) and needs to be immediately readable.
 - **Evolution transformation:** a brief "fossil-glow cocoon → burst" transition when a unit evolves, reinforcing the fossil/excavation fiction at the moment of biggest player payoff.
+- **Egg hatch (gacha pull):** a physical crack-and-split, not a glow-burst — see §6.1. Keeping this distinct from the evolution transformation above matters: two of the game's biggest reward moments (pulling a new unit, evolving one you own) should feel like different kinds of payoff, not the same effect recolored.
 
 ---
 
