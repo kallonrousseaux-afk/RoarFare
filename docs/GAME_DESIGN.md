@@ -1,0 +1,183 @@
+# RoarFare — Game Design Document
+
+**Genre:** Gacha tower-offense (Battle Cats–style lane pusher)
+**Theme:** Prehistoric life, extinction, and evolution
+**Target platform:** iOS (Swift / SpriteKit), built with Xcode
+**Status:** Pre-production / design lock
+
+---
+
+## 1. Pitch
+
+RoarFare is a lane-based tower-offense game in the lineage of *The Battle Cats*: you deploy units on a single-lane battlefield to push toward and destroy the enemy base while your own base takes fire. The reskin is dinosaurs — but the differentiation isn't fur-to-scales. Three systems that Battle Cats doesn't have are load-bearing here:
+
+1. **Eras** replace flat rarity tiers — every unit belongs to a geologic period with its own stat identity and counters.
+2. **Size classes physically occupy lane space** — big units block the lane, small units swarm through gaps.
+3. **Evolution branches into roles**, not just bigger numbers.
+
+Everything else (fossil digs, extinction events, pack hunting, the enemy roster) is built to reinforce those three systems, not to sit alongside them as flavor.
+
+---
+
+## 2. Core Loop
+
+1. Player picks a squad (10 unit slots) from their collection for a given stage.
+2. Stage plays out in real time: currency (**Amber**) accrues, spent to deploy units into the lane.
+3. Units auto-walk toward the enemy base, auto-attack whatever's in range, and get auto-attacked back.
+4. Player wins by destroying the enemy base; loses if their own base HP hits 0.
+5. Post-stage: rewards include Amber, XP, and **Fossil Fragments** (currency for the gacha layer).
+6. Meta-loop: dig fossils → pull/level/evolve units → tackle harder stages → unlock new eras/biomes.
+
+This loop is intentionally close to Battle Cats' — the differentiation lives inside step 3 and the meta-loop, not in the loop's shape.
+
+---
+
+## 3. The Era System
+
+Instead of Battle Cats' Rare/Special/Uber rarity ladder (which is purely a pull-odds tier), every unit has an **Era** that determines its base stat profile and its trait interactions. Rarity (Common/Rare/Epic/Legendary) still exists for gacha odds, but it's orthogonal to Era — a Common-rarity Jurassic unit and a Legendary-rarity Jurassic unit share the same combat identity, just different numbers.
+
+| Era | Stat identity | Design role |
+|---|---|---|
+| **Triassic** | Low HP, low cost, very fast attack speed | Early-game swarm, cheap chip damage, "starter" era |
+| **Jurassic** | High damage, slow attack speed, big hitbox | Heavy hitters, single-target burst, expensive |
+| **Cretaceous** | Balanced stats, unique abilities (armor plating, horns, ranged) | Tactical/utility era, most trait diversity |
+| **Ice Age** | Moderate stats, on-hit slow/freeze effects | Crowd control, anti-swarm |
+| **Marine** (bonus sub-era, deployed only on coastal stages) | High HP, area-denial, can't be knocked back | Stage-gated specialists |
+| **Sky** (bonus sub-era — pterosaurs) | Ignores ground-only enemies, low HP, hit-and-run | Counters "flying" enemy trait |
+
+**Trait/counter web** (rock-paper-scissors layer, analogous to Battle Cats' Red/Floating/Black/Metal):
+- Ice Age slows counter Triassic swarms.
+- Jurassic burst counters Cretaceous armor (armor mitigates DPS, not burst).
+- Cretaceous ranged/utility counters Jurassic's slow attack speed (kite them).
+- Triassic swarm counters single-target Jurassic units (surround before they land a hit).
+- Sky counters "Burrower" enemy trait (see §9) which ignores ground units entirely.
+
+This gives four-plus-way rock-paper-scissors instead of Battle Cats' cleaner but flatter trait chart — intentional, since Eras also carry narrative/unlock weight (you literally unlock eras in sequence as you progress, like unlocking Crazed/Behemoth stages).
+
+---
+
+## 4. Size Classes & Lane Blocking
+
+This is the single biggest mechanical departure from Battle Cats, where units stack infinitely in a lane. In RoarFare, **the lane has physical width**, measured in **Blocking Units (BU)**:
+
+| Size Class | BU cost | Examples | Behavior |
+|---|---|---|---|
+| **Tiny** | 1 BU | Compsognathus, Microraptor | Up to 6 can occupy the lane's frontline simultaneously; die in 1-2 hits but swarm past big blockers |
+| **Small** | 2 BU | Velociraptor, Dilophosaurus | Standard DPS/skirmish units |
+| **Medium** | 3 BU | Triceratops, Stegosaurus | Frontline tanks, knockback-resistant |
+| **Large** | 5 BU | Ankylosaurus, Parasaurolophus | Heavy tank, high knockback resistance, area attacks |
+| **Apex** | 8 BU (lane cap is 10 BU) | T. Rex, Spinosaurus, Giganotosaurus | Only 1 fits on the frontline at a time; massive single-target damage, cannot be knocked back at all, but a screen full of Tiny units can slip past them once they're engaged |
+
+The lane has a **10 BU frontline cap**. This means:
+- Deploying an Apex unit (8 BU) all but locks the frontline — only 2 BU of anything else fits alongside it (e.g., one Tiny unit).
+- Swarm strategies (six Tiny units = 6 BU) leave room to layer a Medium tank behind them.
+- Enemies have BU costs too, so the player must reason about "can I even fit a counter-unit into this lane right now," a resource-management axis Battle Cats never has (Battle Cats units always fit; the constraint there is purely economic/cost, not spatial).
+
+Knockback (an existing Battle Cats mechanic) interacts with BU: strong hits shove Small/Tiny units back a full lane segment, potentially clearing frontline BU space mid-fight — so knockback becomes a way to *unstick* a jammed lane, not just a damage-mitigation dodge.
+
+---
+
+## 5. Units, Roles, and Branching Evolution
+
+Battle Cats evolution is linear (Normal → Evolved → True → Ultra), and it's almost always a pure upgrade. RoarFare evolution is **branching**: at the "Evolved" tier, most units choose one of two divergent forms that change their *role*, not just their stats. You keep both branches unlocked once discovered, but a given deployed copy is one or the other (re-evolving a second copy lets you run both).
+
+Example — **Parasaurolophus** (Cretaceous, Medium):
+- **Base form:** balanced herbivore, moderate HP/damage, no special ability.
+- **Branch A — "Herd Caller":** loses personal damage, gains an aura that buffs attack speed of all units within 2 lane segments. Becomes a support unit.
+- **Branch B — "Skull-Crest Rammer":** gains bonus knockback-resistance and a charge attack with heavy knockback on hit. Becomes an anti-swarm tank.
+
+Example — **Deinonychus** (Cretaceous, Small):
+- **Base form:** fast attacker, average damage.
+- **Branch A — "Pack Leader":** unlocks the Pack Hunting bonus (see §6) when fielded with other raptors.
+- **Branch B — "Ambush Striker":** first attack after being deployed deals 3x damage (opening-alpha-strike role), then reverts to normal.
+
+Every unit's evolution tree is documented as: Base → (Branch A / Branch B), each with its own icon variant, so the collection screen visually reflects the build decision, not just a level number.
+
+**Progression currency for evolution:** Fossil Fragments (from fossil digs, see §7) + in-stage-drop "Evolution Catalysts" specific to each biome, mirroring Battle Cats' Catfruit system but reframed as fossilized biological material specific to where the animal lived.
+
+---
+
+## 6. Pack Hunting (Social/Synergy Layer)
+
+Certain units (mostly Small/Tiny predators — raptors, troodontids) have abilities that only activate when specific squadmates are also on the field:
+
+- **Velociraptor + Deinonychus + Utahraptor fielded together:** each gains +15% attack speed ("Pack Bonus: Raptor Pack").
+- **Any 3+ Ceratopsian units (Triceratops, Styracosaurus, Pentaceratops) on the field:** they form a "Wall" — while adjacent, their combined knockback resistance is treated as one unit's worth (i.e., you have to kill all three near-simultaneously to break the line).
+- **Parasaurolophus "Herd Caller" + any 2 herbivores:** herd-wide heal-over-time.
+
+This gives squad-building a second axis beyond Era/BU math: some squads are built around unlocking synergy bonuses, which Battle Cats' independent-unit design never asked players to do. Pack Hunting bonuses are always additive/supportive (never required to clear content) so they stay a build optimization, not a mandatory gate.
+
+---
+
+## 7. Fossil Dig (Gacha Meta-Layer)
+
+Reframes Battle Cats' Cat Capsule gacha as **Dig Sites**:
+
+- Each Dig Site is themed to a biome (Desert Dig, Arctic Dig, Swamp Dig, Coastal Dig, Volcanic Dig) and its pull pool is weighted toward Eras/units native to that biome (Desert Dig favors Cretaceous ceratopsians and ankylosaurs; Arctic Dig favors Ice Age megafauna).
+- Currency: **Fossil Fragments**, earned from stage clears and log-in rewards; premium currency **Amber Shards** can buy Fragments directly (this is the monetization-equivalent slot Battle Cats fills with Cat Food).
+- Pity system: guaranteed Epic+ every 30 digs at a site, guaranteed Legendary every 200 (numbers tunable, but a hard pity must exist — no fully unbounded gacha).
+- **Banner site rotation:** limited-time Dig Sites (e.g., "Feathered Dinosaurs Dig," "Marine Reptile Dig") introduce new Eras/sub-eras gradually rather than launching the full roster day one.
+
+Rate transparency and a hard pity are non-negotiable design requirements, not just a nice-to-have — App Store policy requires disclosed odds for loot-box mechanics, and a hard pity keeps the system from reading as predatory.
+
+---
+
+## 8. Extinction Events (Endgame Modes)
+
+Battle Cats' analog is Special/Catclaw Dojo stages with unusual rule modifiers. RoarFare frames the same idea narratively:
+
+- **Meteor Strike Event:** periodic global rule-modifier stages where a "meteor timer" counts down; if the player hasn't destroyed the enemy base before it hits zero, ALL units (both sides) take escalating burn damage per tick — forces aggressive, fast-clear play rather than turtling.
+- **Ice Age Event:** stage-wide slow field affects both sides' non-Ice-Age units; only Ice Age-Era units are unaffected — a stage practically designed to force players to field an off-meta Era.
+- **Volcanic Event:** lane hazard zones periodically erupt, damaging whatever's standing in them regardless of side — adds a positioning/timing puzzle on top of the usual deploy-timing puzzle.
+- **The Great Dying (top-tier raid stage):** an ultra-hard capstone raid themed around the Permian extinction, gated behind clearing all four standard Extinction Events once — this is RoarFare's answer to Battle Cats' Behemoth Stones/Zero Legends, i.e., the "prestige raid" slot.
+
+Each event is time-limited (rotates weekly/monthly) and drops event-exclusive Evolution Catalysts, giving them a reason to run beyond bragging rights.
+
+---
+
+## 9. Enemy Design & Meta-Narrative Arc
+
+Battle Cats' enemy trait roster (Traitless / Red / Floating / Black / Metal / Angel / Alien / Zombie / Relic) is replaced with a **thematically-motivated, escalating cast** that also tells a story across the campaign:
+
+| Tier | Enemy faction | Trait | Narrative framing |
+|---|---|---|---|
+| 1 | **Rival Dinosaurs** | Traitless | Contemporary predators/herbivores from other territories — basic tutorial-tier threats |
+| 2 | **Burrowers** | Ignores ground-based melee unless it also has Sky or anti-Burrower trait | Ancient burrowing reptiles/insects — forces Sky-Era counter-picks |
+| 3 | **Leviathans** | High HP, slow, area-denial (Marine stages) | Giant marine reptiles (Mosasaurs, Plesiosaurs) — coastal-stage gatekeepers |
+| 4 | **Swarmkind** | Numerous, individually weak, high aggregate BU pressure | Giant prehistoric insects/arthropods — punishes players who only bring Apex units (BU-starved lane) |
+| 5 | **Ashborn** | Fire/lava-themed, burn DoT on hit | Volcanic-event-native threats |
+| 6 (final act) | **The Mammal Ascendant** | Small, adaptive, gains a permanent small stat buff every time the player loses a stage against them ("adapts") | Framed as the extinction-event antagonist faction — early mammals (and eventually proto-humans) rising as the dinosaurs' era ends. This flips the real-world extinction narrative into the final boss arc: the player spends the whole game being the apex, then has to fight the thing that outlasts them |
+
+This gives the campaign an actual narrative arc (rival dinos → environmental threats → the thing that replaces you) instead of being reskinned generic waves, and it's the main story-driven differentiator from Battle Cats, which is intentionally light on lore.
+
+---
+
+## 10. Progression & Economy Overview
+
+- **Base currencies:** Amber (in-stage deploy currency, also soft meta-currency for basic upgrades), Fossil Fragments (gacha pulls), Evolution Catalysts (biome-specific evolution material), Amber Shards (premium).
+- **Unit leveling:** flat XP-based level-up using Fossil Fragments + Amber, capped per rarity tier (mirrors Battle Cats' Cat Food + XP leveling, no departure needed here — it isn't a differentiation lever worth spending novelty budget on).
+- **Stage structure:** World Map → Biome (group of ~12 stages) → Boss stage → unlocks next Biome + its Dig Site. Biomes double as both level packs and gacha-pool themes, so map progression and collection-building reinforce each other.
+- **Energy/stamina system:** standard timed-regen stamina gate per stage attempt (same as Battle Cats' Energy) — not a differentiation target, keep it standard.
+
+---
+
+## 11. MVP Scope (for a Claude + Xcode build)
+
+Building the whole system above at once is not a v1. Recommended MVP cut, in order:
+
+1. **Lane + BU system** (the core differentiator) with 3 Eras (Triassic, Jurassic, Cretaceous) and Tiny/Small/Medium/Large/Apex sizes — no Marine/Sky yet.
+2. **8–10 hand-authored units** covering every size class and at least one branching evolution example end-to-end.
+3. **One biome's worth of stages** (8-10 stages) using Tier 1-2 enemies only (Rival Dinosaurs, Burrowers).
+4. **A single Dig Site** with a basic pity counter — defer banner rotation and premium currency to post-MVP.
+5. Defer: Pack Hunting synergies, Extinction Events, Marine/Sky sub-eras, the full 6-tier enemy arc.
+
+This scope proves out the lane-blocking mechanic and branching evolution — the two systems that make RoarFare not just a reskin — before investing in the meta-layer breadth.
+
+---
+
+## 12. Tech Notes (Swift / Xcode)
+
+- **Engine:** SpriteKit is sufficient for a 2D single-lane tower-offense game and integrates natively with Xcode/Swift without a third-party engine dependency; SwiftUI can wrap the meta-game screens (collection, dig site, world map) around an `SKScene`-hosted battle view.
+- **Data-driven units:** define units as Swift `Codable` structs backed by a bundled JSON (or `.plist`) table (Era, size class/BU cost, HP, damage, attack speed, range, traits, evolution branch refs) rather than hardcoding per-unit subclasses — this keeps adding the ~100+ unit roster from becoming a code-scale problem, and lets Claude generate/edit unit data as structured JSON rather than Swift code.
+- **Lane/BU collision:** model the lane as a 1D coordinate space with per-unit BU "footprint," not a full 2D physics simulation — resolve blocking as a simple occupied-width check, since real physics is unnecessary overhead for a lane game.
+- **Save data / gacha state:** local persistence via `SwiftData` (or `Codable` + file storage) is enough for an offline-first MVP; only add a backend once live-ops (banner rotation, leaderboards) is actually in scope.
