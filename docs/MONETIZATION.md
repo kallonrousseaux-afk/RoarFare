@@ -12,6 +12,7 @@ Companion to `GAME_DESIGN.md` §7 (Fossil Dig) and §10 (Progression & Economy).
 | **Fossil Fragments** | Soft, meta | Stage clear rewards, daily login, achievements | Dig Site pulls, unit leveling | Indirectly — Amber Shards convert to Fragments, never sold as their own SKU (keeps the "free currency" legible as free) |
 | **Evolution Catalysts** | Soft, biome-specific | Stage drops per biome | Evolving units past base form | No — must stay fully earnable, since gating evolution behind a paywall would read as pay-to-win on power, not just speed |
 | **Amber Shards** | Premium/hard | Small trickle from stage-clear milestones, achievements, events; primary source is real-money purchase | Dig Site pulls (premium rate), cosmetic items, Fossil Pass, convert to Fossil Fragments | **Yes** — this is the only currency IAP sells directly |
+| **Glory** | Soft, PvP-only | Rival Grounds ladder rank and season-end payout (see `GAME_DESIGN.md` §14) | Cosmetic-only items (color morphs, victory poses, arena frames) and small Evolution Catalyst amounts | **No, in either direction** — Glory cannot be bought with Amber Shards and Amber Shards cannot be bought with Glory. This firewall is deliberate: it's what keeps PvP power un-purchasable per §14.3 |
 
 Design rule: every currency must have a visible, if slow, free-to-earn path. A currency that is 100% purchase-only fails App Store review scrutiny in some regions and is bad practice regardless.
 
@@ -45,6 +46,8 @@ All prices below use Apple's standard price-tier increments as placeholders — 
 - `fossil_pass_monthly` (~$4.99/mo): grants a daily Fossil Fragment stipend, a small daily Amber Shard trickle, and access to a "Dig Pass" reward track (free track + paid track, battle-pass structure) that pays out Evolution Catalysts and cosmetic frames as players clear stages during the month. This is the highest-LTV, most player-friendly SKU in most gacha economies (it rewards continued play rather than pure luck) and should be the flagship offer, not an afterthought.
 
 **Guardrail:** no SKU should let a player directly purchase a specific named unit outright (e.g., "Buy 1 T. Rex for $9.99"). Everything money-based must route through either the gacha pool (chance) or the pass/pity track (guaranteed but earned through play + time). Direct unit sales collapse the entire collection fantasy and invite "pay to auto-win" perception.
+
+**Second guardrail (PvP-specific):** Rival Grounds cosmetics (color morphs, victory poses, arena frames) are earned only through Glory (`GAME_DESIGN.md` §14) and are never sold as a direct IAP SKU, even though they're purely cosmetic. Competitive-mode prestige items being earn-only (not purchasable at any price) is what keeps a ranked ladder feeling like a ladder rather than a storefront — the same logic ranked cosmetics follow in most competitive live-service games.
 
 ---
 

@@ -171,7 +171,7 @@ Building the whole system above at once is not a v1. Recommended MVP cut, in ord
 2. **8–10 hand-authored units** covering every size class and at least one branching evolution example end-to-end.
 3. **One biome's worth of stages** (8-10 stages) using Tier 1-2 enemies only (Rival Dinosaurs, Burrowers).
 4. **A single Dig Site** with a basic pity counter — defer banner rotation and premium currency to post-MVP.
-5. Defer: Pack Hunting synergies, Extinction Events, Marine/Sky sub-eras, the full 6-tier enemy arc.
+5. Defer: Pack Hunting synergies, Extinction Events, Marine/Sky sub-eras, the full 6-tier enemy arc, and Rival Grounds PvP (§14) — PvP in particular needs a backend for snapshot storage/matchmaking that the MVP's offline-first scope doesn't otherwise require, so it comes after the core PvE loop is proven, not alongside it.
 
 This scope proves out the lane-blocking mechanic and branching evolution — the two systems that make RoarFare not just a reskin — before investing in the meta-layer breadth.
 
@@ -183,6 +183,7 @@ This scope proves out the lane-blocking mechanic and branching evolution — the
 - **Data-driven units:** define units as Swift `Codable` structs backed by a bundled JSON (or `.plist`) table (Era, size class/BU cost, HP, damage, attack speed, range, traits, evolution branch refs) rather than hardcoding per-unit subclasses — this keeps adding the ~100+ unit roster from becoming a code-scale problem, and lets Claude generate/edit unit data as structured JSON rather than Swift code.
 - **Lane/BU collision:** model the lane as a 1D coordinate space with per-unit BU "footprint," not a full 2D physics simulation — resolve blocking as a simple occupied-width check, since real physics is unnecessary overhead for a lane game.
 - **Save data / gacha state:** local persistence via `SwiftData` (or `Codable` + file storage) is enough for an offline-first MVP; only add a backend once live-ops (banner rotation, leaderboards) is actually in scope.
+- **PvP backend (when §14 Tier 1 is built):** CloudKit is a reasonable first choice given the Xcode/Swift target — it can store defense-squad snapshots and drive matchmaking/leaderboards without standing up custom server infrastructure, and it's already first-party in the Apple toolchain. Tier 2's real-time Head-to-Head Clash is the point where a purpose-built game server (state sync, input validation) becomes necessary — don't reach for that until Tier 1 has validated the mode is worth the investment.
 
 ---
 
@@ -192,4 +193,36 @@ Checked this design against current popularity patterns and standard gimmicks in
 
 1. **Guest Dino (support-borrow system) — recommended post-MVP addition.** Arknights' Support Unit and Fire Emblem Heroes' friend-unit systems (borrow a friend's or a random other player's high-rarity unit, free, for a single stage attempt) are consistently cited as one of the genre's best-liked features: they flatten early-game difficulty spikes without giving anything away permanently, and they double as a soft flex/social hook (seeing a friend's cool Apex-tier dino). RoarFare doesn't have this yet. It's deliberately excluded from the MVP cut (§11) since it needs a minimal backend (fetching another player's unit data) that the MVP's offline-first scope doesn't otherwise require — but it should be the first meta-feature added once a backend exists for banner rotation anyway.
 2. **Collab-ready banner framing — no build change needed now, but a naming/scope note.** Crossover events are historically Battle Cats' single biggest engagement and revenue driver. RoarFare is an original IP, so licensed collabs aren't available at launch, but the Dig Site/banner system (§7) is already generic enough to host a themed "guest era" later — either an in-universe special-event cast or an eventual licensed crossover. No structural change needed; just don't hardcode banner theming assumptions that would make a future guest-era event awkward to slot in.
-3. **No PvP/multiplayer — confirmed as a deliberate omission, not a gap.** Roughly half of new titles in the genre now ship some multiplayer feature, but Battle Cats itself has never needed one, and PvP would put competitive-balance pressure on a unit roster that's designed around collection/build-expression fantasy (§5, §6) rather than head-to-head fairness. Staying single-player-only through the MVP and likely v1 is a considered choice.
+3. **PvP/multiplayer.** Roughly half of new titles in the genre now ship some multiplayer feature; Battle Cats itself never has, and PvP puts real competitive-balance pressure on a roster designed around collection/build-expression fantasy (§5, §6) rather than head-to-head fairness. That tension doesn't go away just because we're building the mode — see §14 for the design, and note it's still excluded from the MVP cut (§11); it's a post-launch addition once the core PvE loop and a backend already exist.
+
+---
+
+## 14. PvP Mode: Rival Grounds
+
+Two tiers, built in sequence. Both reuse the existing lane + BU combat simulation (§4) rather than inventing a second battle system — that's what keeps this affordable to build on top of everything else in this doc.
+
+### 14.1 Tier 1 — Asynchronous Arena (the version to actually build first)
+
+This is the standard approach genre-wide for exactly this reason: no live netcode, no two-players-online-at-once requirement, and it slots into the offline-first / SwiftData architecture already chosen (§12) with only a thin backend for snapshot storage and matchmaking — not a full real-time multiplayer server.
+
+- **Defense squad:** every player sets a 10-unit "Defense Squad" plus a deployment script (drag-set the order/rough timing they'd deploy in, capped at a handful of timed steps — not full manual play). This gets uploaded as a snapshot whenever the player changes it.
+- **Attacking:** when a player queues into Rival Grounds, matchmaking pulls an opponent's snapshot and runs it through the *exact same PvE battle simulation* as a scripted stage — the opponent's Defense Squad deploys on their script, the attacker deploys live against it, on a lane with the same BU rules as everywhere else in the game. From the attacker's point of view this plays exactly like fighting a stage; the only difference is the "enemy" data came from another player's roster instead of level design.
+- **Result:** the outcome (attacker win/loss, base HP remaining) is reported back and affects both players' ladder rank — the defender didn't have to be online for it.
+- **Ranked ladder & seasons:** standard seasonal ladder (4-6 week seasons), rank tiers, season-end rewards. Losing your defense doesn't cost you anything material (no unit loss, no currency drain) — only ladder rank moves, keeping losses low-stakes and retention-friendly rather than punishing.
+- **Rewards:** a dedicated PvP-only currency, **Glory**, earned from ladder rank and season-end payout. Glory buys **cosmetic-only** items — alternate color morphs, victory poses, arena banner frames — and small amounts of Evolution Catalysts. Glory is never sellable for or purchasable with Amber Shards, and nothing Glory buys affects PvE or PvP unit power. This is the load-bearing anti-P2W rule for the whole mode (see §14.3).
+
+### 14.2 Tier 2 — Head-to-Head Clash (stretch goal, later phase)
+
+The mechanically richer version, worth building once Tier 1 has proven the mode has an audience and a live backend already exists to support it:
+
+- Two players queue together and battle in real time on a **single shared lane with both bases facing each other** — each player's units walk toward the opponent's base from opposite ends and meet in the middle. This is a direct, low-invention extension of the existing lane/BU model (§4): instead of one player's BU cap facing scripted PvE waves, it's two live 10-BU frontlines colliding in the same space. An Apex unit here isn't just blocking AI waves, it's a wall the opposing player has to specifically answer with knockback or a swarm push — the single most interesting tactical wrinkle PvP adds that PvE alone doesn't produce.
+- Requires actual server-authoritative real-time netcode (state sync, input validation, disconnect handling) — a materially bigger engineering lift than Tier 1's snapshot approach, and the reason this is sequenced as a stretch goal rather than shipped alongside Tier 1.
+- Same Glory currency, same cosmetic-only reward rule as Tier 1.
+
+### 14.3 Fairness Rules (non-negotiable, given the monetization design in `MONETIZATION.md`)
+
+Everything in `MONETIZATION.md` is built around "no purchasable unit, no purchasable power" — PvP is the one mode where breaking that rule would be most damaging (a whale literally beating a free player in a head-to-head match reads very differently than a whale clearing PvE content faster). So:
+
+- **Stat normalization in PvP context only:** unit stats used inside Rival Grounds are scaled to a common power cap per rarity tier (a Legendary at level 10 and a Legendary at max level both fight at the same normalized stat line in PvP), so unit *level* and *Specimen Mastery stacks* (`MONETIZATION.md` §3) — both of which spend gates or accelerates — don't translate into a PvP power advantage. Roster *breadth* (which units you own, which evolution branches you've unlocked) still matters and is still a legitimate progression flex; raw grind/spend does not.
+- **No currency purchasable with real money affects PvP power.** Amber Shards buy gacha pulls and cosmetics; they never buy anything that normalizes differently inside Rival Grounds.
+- **Matchmaking bracket is roster breadth, not account age or spend.** Prevents a new account with a lucky early pull from being farmed by, and separately prevents whales from being matched against players who simply haven't unlocked as many units yet.
