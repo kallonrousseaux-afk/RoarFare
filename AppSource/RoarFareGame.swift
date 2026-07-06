@@ -1,6 +1,7 @@
 import Foundation
 import SpriteKit
 import SwiftUI
+import Combine
 
 // MARK: - Core types (mirrors RoarFareCore, inlined so this is a single drop-in file)
 
@@ -372,18 +373,58 @@ let bundledUnits: [UnitDefinition] = [
     )
 ]
 
+/// One tappable deploy button: a unit's base form, or one of its evolution branches.
+/// Branches deploy at the same Amber cost as the base form in this prototype -- the real
+/// design (GAME_DESIGN.md §5) evolves permanently using Evolution Catalysts, not a per-deploy
+/// currency choice; this is a simplification specific to this playable slice.
+struct DeployOption: Identifiable {
+    let id: String
+    let label: String
+    let unitIndex: Int
+    let branchID: String?
+    let cost: Int
+}
+
+let deployOptions: [DeployOption] = {
+    var options: [DeployOption] = []
+    for (index, unit) in bundledUnits.enumerated() {
+        options.append(DeployOption(id: unit.id, label: unit.name, unitIndex: index, branchID: nil, cost: unit.deployCost))
+        for branch in unit.evolutionBranches {
+            options.append(DeployOption(
+                id: "\(unit.id)_\(branch.id)",
+                label: "\(unit.name) (\(branch.name))",
+                unitIndex: index,
+                branchID: branch.id,
+                cost: unit.deployCost
+            ))
+        }
+    }
+    return options
+}()
+
 // MARK: - SpriteKit battle scene
 
-final class BattleScene: SKScene {
+final class BattleScene: SKScene, ObservableObject {
     private var lane = Lane(length: 900, playerBaseHP: 1000, enemyBaseHP: 1000)
     private var lastUpdateTime: TimeInterval?
-    private var amber: Double = 0
+
+    // Amber is tracked as a whole number (it was only ever displayed as Int anyway) and
+    // @Published is only updated when that whole number actually changes -- publishing every
+    // frame at 60fps just to grey out buttons would be wasteful and can visibly stutter SwiftUI.
+    private var amberAccumulator: Double = 0
+    @Published private(set) var amber: Int = 0
     private let amberPerSecond: Double = 20
 
-    private var enemySpawnTimer: Double = 0
-    private let enemySpawnCooldown: Double = 2.0
+    // The enemy has its own economy now, gated the same way the player's is -- previously this
+    // spawned a uniformly random unit (including the 1800-cost T. Rex) every 2 seconds with no
+    // cost check at all, which made the game unwinnable regardless of player skill. Now it can
+    // only deploy what it can actually afford, accruing slightly slower than the player.
+    private var enemyAmberAccumulator: Double = 0
+    private let enemyAmberPerSecond: Double = 16
+    private var enemySpawnCheckTimer: Double = 0
+    private let enemySpawnCheckInterval: Double = 0.5
 
-    private var isGameOver = false
+    @Published private(set) var isGameOver = false
 
     private struct UnitVisual {
         let container: SKNode
@@ -421,12 +462,32 @@ final class BattleScene: SKScene {
         addChild(statusLabel)
     }
 
-    func deployPlayerUnit(at index: Int) {
-        guard !isGameOver, bundledUnits.indices.contains(index) else { return }
-        let unit = bundledUnits[index]
-        guard Double(unit.deployCost) <= amber else { return }
-        guard lane.deploy(unit, to: .player) else { return }
-        amber -= Double(unit.deployCost)
+    func deployPlayerUnit(unitIndex: Int, branchID: String? = nil) {
+        guard !isGameOver, bundledUnits.indices.contains(unitIndex) else { return }
+        let unit = bundledUnits[unitIndex]
+        guard unit.deployCost <= amber else { return }
+        guard lane.deploy(unit, activeBranchID: branchID, to: .player) else { return }
+        amber -= unit.deployCost
+        // Keep the fractional accumulator in sync with the spend, or next frame's re-derivation
+        // of `amber` from the accumulator would silently undo this deduction.
+        amberAccumulator = Double(amber)
+    }
+
+    /// Resets the battle to its starting state so the SwiftUI layer can offer "Play Again"
+    /// instead of the game being stuck forever once someone wins or loses.
+    func reset() {
+        lane = Lane(length: 900, playerBaseHP: 1000, enemyBaseHP: 1000)
+        amberAccumulator = 0
+        amber = 0
+        enemyAmberAccumulator = 0
+        enemySpawnCheckTimer = 0
+        lastUpdateTime = nil
+        isGameOver = false
+        statusLabel.isHidden = true
+        for visual in playerVisuals.values { visual.container.removeFromParent() }
+        for visual in enemyVisuals.values { visual.container.removeFromParent() }
+        playerVisuals.removeAll()
+        enemyVisuals.removeAll()
     }
 
     override func update(_ currentTime: TimeInterval) {
@@ -434,24 +495,31 @@ final class BattleScene: SKScene {
         let deltaTime = lastUpdateTime.map { currentTime - $0 } ?? 0
         lastUpdateTime = currentTime
 
-        amber += amberPerSecond * deltaTime
+        amberAccumulator += amberPerSecond * deltaTime
+        let newAmber = Int(amberAccumulator)
+        if newAmber != amber {
+            amber = newAmber
+        }
 
-        enemySpawnTimer += deltaTime
-        if enemySpawnTimer >= enemySpawnCooldown, let randomUnit = bundledUnits.randomElement() {
-            if lane.deploy(randomUnit, to: .enemy) {
-                enemySpawnTimer = 0
+        enemyAmberAccumulator += enemyAmberPerSecond * deltaTime
+        enemySpawnCheckTimer += deltaTime
+        if enemySpawnCheckTimer >= enemySpawnCheckInterval {
+            enemySpawnCheckTimer = 0
+            let affordable = bundledUnits.filter { Double($0.deployCost) <= enemyAmberAccumulator }
+            if let pick = affordable.randomElement(), lane.deploy(pick, to: .enemy) {
+                enemyAmberAccumulator -= Double(pick.deployCost)
             }
         }
 
         lane.tick(deltaTime: deltaTime)
 
-        sync(units: lane.playerUnits, visuals: &playerVisuals, color: .systemBlue)
-        sync(units: lane.enemyUnits, visuals: &enemyVisuals, color: .systemRed)
+        sync(units: lane.playerUnits, visuals: &playerVisuals, sideColor: .systemBlue)
+        sync(units: lane.enemyUnits, visuals: &enemyVisuals, sideColor: .systemRed)
         updateLabels()
         checkGameOver()
     }
 
-    private func sync(units: [DeployedUnit], visuals: inout [UUID: UnitVisual], color: SKColor) {
+    private func sync(units: [DeployedUnit], visuals: inout [UUID: UnitVisual], sideColor: SKColor) {
         var seenIDs = Set<UUID>()
         for unit in units {
             seenIDs.insert(unit.id)
@@ -459,7 +527,7 @@ final class BattleScene: SKScene {
             if let existing = visuals[unit.id] {
                 visual = existing
             } else {
-                visual = makeVisual(color: color)
+                visual = makeVisual(for: unit, sideColor: sideColor)
                 visuals[unit.id] = visual
             }
             visual.container.position = CGPoint(x: xPosition(for: unit.position), y: size.height / 2)
@@ -471,20 +539,47 @@ final class BattleScene: SKScene {
         }
     }
 
-    private func makeVisual(color: SKColor) -> UnitVisual {
+    /// Placeholder visuals only (real art is a later phase, per ART_BIBLE.md) -- but at least
+    /// size now reflects BU class and the ring color reflects Era, so the two mechanics that
+    /// actually differentiate units are visible on screen instead of every unit being an
+    /// identical dot.
+    private func makeVisual(for unit: DeployedUnit, sideColor: SKColor) -> UnitVisual {
         let container = SKNode()
-        let shape = SKShapeNode(circleOfRadius: 14)
-        shape.fillColor = color
-        shape.strokeColor = .white
+        let r = radius(for: unit.definition.sizeClass)
+        let shape = SKShapeNode(circleOfRadius: r)
+        shape.fillColor = sideColor
+        shape.strokeColor = eraColor(for: unit.definition.era)
+        shape.lineWidth = 3
         container.addChild(shape)
 
         let hpLabel = SKLabelNode(fontNamed: "Menlo")
         hpLabel.fontSize = 10
-        hpLabel.position = CGPoint(x: 0, y: 18)
+        hpLabel.position = CGPoint(x: 0, y: r + 6)
         container.addChild(hpLabel)
 
         addChild(container)
         return UnitVisual(container: container, hpLabel: hpLabel)
+    }
+
+    private func radius(for sizeClass: SizeClass) -> CGFloat {
+        switch sizeClass {
+        case .tiny: return 10
+        case .small: return 14
+        case .medium: return 18
+        case .large: return 24
+        case .apex: return 32
+        }
+    }
+
+    private func eraColor(for era: Era) -> SKColor {
+        switch era {
+        case .triassic: return .systemOrange
+        case .jurassic: return .systemGreen
+        case .cretaceous: return .systemTeal
+        case .iceAge: return .white
+        case .marine: return .systemBlue
+        case .sky: return .systemPurple
+        }
     }
 
     private func xPosition(for lanePosition: Double) -> CGFloat {
@@ -495,7 +590,7 @@ final class BattleScene: SKScene {
     }
 
     private func updateLabels() {
-        amberLabel.text = "Amber: \(Int(amber))"
+        amberLabel.text = "Amber: \(amber)"
         playerBaseLabel.text = "Base: \(max(0, lane.playerBaseHP))"
         enemyBaseLabel.text = "Enemy Base: \(max(0, lane.enemyBaseHP))"
     }
@@ -518,7 +613,7 @@ final class BattleScene: SKScene {
 // MARK: - SwiftUI host view
 
 struct RoarFareContentView: View {
-    @State private var scene: BattleScene = {
+    @StateObject private var scene: BattleScene = {
         let scene = BattleScene(size: CGSize(width: 400, height: 300))
         scene.scaleMode = .resizeFill
         return scene
@@ -529,15 +624,27 @@ struct RoarFareContentView: View {
             SpriteView(scene: scene)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
+            if scene.isGameOver {
+                Button("Play Again") {
+                    scene.reset()
+                }
+                .padding(8)
+                .background(Color.green.opacity(0.3))
+                .cornerRadius(8)
+                .padding(.top, 8)
+            }
+
             ScrollView(.horizontal) {
                 HStack {
-                    ForEach(Array(bundledUnits.enumerated()), id: \.offset) { index, unit in
-                        Button(unit.name) {
-                            scene.deployPlayerUnit(at: index)
+                    ForEach(deployOptions) { option in
+                        let affordable = option.cost <= scene.amber
+                        Button(option.label) {
+                            scene.deployPlayerUnit(unitIndex: option.unitIndex, branchID: option.branchID)
                         }
                         .padding(8)
-                        .background(Color.blue.opacity(0.2))
+                        .background((affordable ? Color.blue : Color.gray).opacity(0.3))
                         .cornerRadius(8)
+                        .disabled(!affordable)
                     }
                 }
                 .padding()

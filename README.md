@@ -23,3 +23,14 @@ A dinosaur-themed lane tower-offense game in the spirit of *The Battle Cats*, di
 An independent review pass caught several doc/code inconsistencies that have since been fixed: a stale gacha pity number in `GAME_DESIGN.md` that disagreed with `MONETIZATION.md`, a PvP section in `MONETIZATION.md`'s benchmarking table that contradicted the full Rival Grounds spec built later, a size-class mismatch between two units' documented examples and their actual `units.json` entries, a broken `§4.5` cross-reference, and the Tiny headcount cap described in the design doc but never enforced in code (now fixed, with the misleading test that had demonstrated the bug corrected alongside it).
 
 This repo was authored outside Xcode — no Swift toolchain is available in that environment (network policy blocks `download.swift.org`), so everything here was written and checked without a compiler: JSON validated with `python3 -m json.tool`, brace balance checked per file, and every test manually traced against the implementation logic by hand. Open the package in Xcode (`File > Open` on `Package.swift`) to actually build and run the test suite — that's the first thing to do with this code, since it hasn't been compiled yet.
+
+## Playable app (`AppSource/RoarFareGame.swift`)
+
+A single self-contained Swift file (no package dependency) with the same game logic inlined, plus a SpriteKit battle scene and a SwiftUI host view (`RoarFareContentView`) — this is what actually runs as an app in Xcode's Simulator, confirmed building and launching successfully (Phase 0/1 of `docs/ROADMAP.md`).
+
+- Player and enemy each have their own Amber-style economy gating what they can deploy — the enemy can only spawn what it can currently afford, checked twice a second (an earlier draft spawned a uniformly random unit, including the most expensive one, on a flat timer with no cost check at all — a real bug, not a design choice, fixed once actually reasoned through).
+- Every evolution branch (Herd Caller, Skull-Crest Rammer, Ambush Striker, Pack Leader) is reachable as its own deploy button, not just the base form.
+- `BattleScene.reset()` + a "Play Again" button let a finished match restart without relaunching the app.
+- Placeholder unit visuals vary by BU size class (circle radius) and Era (ring color) instead of every unit being an identical dot — still not real art (see `docs/ART_BIBLE.md` for that), but the mechanics that actually differentiate units are visible on screen now.
+
+To add this to an Xcode project: create a plain iOS App (SwiftUI) target, drag `AppSource/RoarFareGame.swift` in (no other files, no package dependencies needed), and point the `@main` App struct's `WindowGroup` at `RoarFareContentView()` instead of the template's `ContentView()`.

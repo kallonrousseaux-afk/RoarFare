@@ -26,19 +26,19 @@ Built clean and the full test suite passed, all green, first try. Every hand-tra
 
 ## Phase 1 — Wrap the core in a playable vertical slice
 
-**Goal:** one real, playable stage — see a dino walk down a lane, deploy units, watch them fight, win or lose — running in the iOS Simulator. This is the first point the project stops being "code that's never run" and becomes "a game."
+**Status: done, and past its original exit criterion.** `AppSource/RoarFareGame.swift` is a real, running app confirmed building and launching in the Simulator — not via the original plan (a separate `RoarFareCore` package dependency), but as a single self-contained file, because the package-dependency + multi-file-target setup kept producing broken Xcode project states (stale frameworks, missing `@main`, signing confusion) that were faster to route around than debug live, file by file, over chat. That workaround is documented in the README's "Playable app" section.
 
-**Steps:**
-1. Create a new Xcode iOS App target in this same repo/workspace, add `RoarFareCore` as a local package dependency.
-2. Build a single `SKScene` that renders `Lane` state: a horizontal strip, unit sprites (placeholder rectangles/circles are fine here — real art is Phase 5) positioned by `DeployedUnit.position`, HP bars, and the two base HP totals.
-3. Wire a `CADisplayLink`/SpriteKit update loop to call `Lane.tick(deltaTime:)` every frame.
-4. Add a bare-bones deploy UI: a row of buttons (one per bundled unit in `units.json`) that call `Lane.deploy(_:to:.player)` when tapped, gated by a simple Amber counter that accrues over time (per `GAME_DESIGN.md` §2's core loop — this is the first implementation of the Amber currency).
-5. Add a trivial enemy AI: deploy from `units.json` on a timer for the `.enemy` side, so there's something to fight.
-6. Add win/lose detection (`enemyBaseHP <= 0` / `playerBaseHP <= 0`) and a simple end screen.
+**Steps (kept for history — all done):**
+1. ~~Create a new Xcode iOS App target... add `RoarFareCore` as a local package dependency.~~ Superseded — single self-contained file instead, no package dependency.
+2. Build a single `SKScene` that renders `Lane` state — done.
+3. Wire the SpriteKit update loop to call `Lane.tick(deltaTime:)` every frame — done.
+4. Deploy UI gated by an accruing Amber counter — done, and extended: every evolution branch is now its own deploy button, and buttons grey out when unaffordable.
+5. Enemy AI — done, and fixed past the original plan: initially spawned a uniformly random unit (including the most expensive one) on a flat timer with zero cost check, which would have made the game unwinnable. Now the enemy has its own Amber-style economy and only deploys what it can afford.
+6. Win/lose detection and end screen — done, plus a "Play Again" button (`BattleScene.reset()`) that wasn't in the original plan but was an obvious gap once actually playtestable.
 
-**Exit criterion:** you can tap through a full stage from start to a win or loss screen, entirely in the Simulator, with no crashes.
+**Exit criterion (met):** the game builds and runs in the Simulator. **Not yet actually playtested against real gameplay feel** — the numbers (walk speed, Amber income, enemy economy pace) are reasoned-through guesses, not tuned from play. That's the honest next step before calling Phase 1 fully closed.
 
-**Model:** Sonnet for all of it. This is the highest-value phase to get right before writing another line of design doc — it's where you'll actually feel whether BU-blocking and knockback are fun, which no amount of doc-writing can tell you.
+**Model:** Sonnet for all of it — this phase is exactly why: real Xcode errors, read from screenshots, needed direct debugging judgment, not autonomous execution.
 
 ---
 
