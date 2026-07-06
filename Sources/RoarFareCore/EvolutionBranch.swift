@@ -8,11 +8,23 @@ public struct EvolutionBranch: Codable, Equatable, Sendable, Identifiable {
     public let name: String
     public let statModifiers: StatModifiers
     public let abilityDescription: String
+    /// Executable behavior backing `abilityDescription`, if any — see `Ability`. `nil` for
+    /// branches that are pure stat deltas. Optional properties decode via `decodeIfPresent`
+    /// under Swift's synthesized `Decodable`, so existing JSON entries without an "ability" key
+    /// still decode fine as `nil` — this field didn't need every branch in `units.json` updated.
+    public let ability: Ability?
 
-    public init(id: String, name: String, statModifiers: StatModifiers, abilityDescription: String) {
+    public init(
+        id: String,
+        name: String,
+        statModifiers: StatModifiers,
+        abilityDescription: String,
+        ability: Ability? = nil
+    ) {
         self.id = id
         self.name = name
         self.statModifiers = statModifiers
         self.abilityDescription = abilityDescription
+        self.ability = ability
     }
 }

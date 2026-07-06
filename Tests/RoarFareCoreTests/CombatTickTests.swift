@@ -142,4 +142,33 @@ final class CombatTickTests: XCTestCase {
         XCTAssertEqual(lane.enemyUnits[0].currentHP, 990)
         XCTAssertEqual(lane.enemyUnits[0].position, 10.0, accuracy: 0.0001)
     }
+
+    func testKnockbackDroppingUnitOutOfFrontlineRangeFreesItsBU() {
+        let lane = Lane(length: 100)
+        let large = makeUnit(id: "large", sizeClass: .large, rangeUnits: 0) // never engages on its own
+        lane.deploy(large, to: .enemy) // enemyA, starts at position 100
+        lane.deploy(large, to: .enemy) // enemyB, starts at position 100
+
+        // Let both walk into the lane together for a tick before anything can hit them -- same
+        // speed, no engagement, so they stay perfectly clustered and both still count toward BU.
+        lane.tick(deltaTime: 1.0, walkSpeed: 5.0)
+        XCTAssertEqual(lane.enemyUnits[0].position, 95.0, accuracy: 0.0001)
+        XCTAssertEqual(lane.enemyUnits[1].position, 95.0, accuracy: 0.0001)
+        XCTAssertEqual(lane.currentBU(for: .enemy), 10) // both Large (5 BU each), both still clustered
+
+        lane.deploy(
+            makeUnit(id: "rammer", attackDamage: 10, attackIntervalSeconds: 1.0, rangeUnits: 100, dealsKnockback: true),
+            to: .player
+        )
+        lane.tick(deltaTime: 1.0, walkSpeed: 5.0)
+
+        // The rammer hits the tied-distance first enemy and knocks it back +3 (95 -> 98), then
+        // that enemy still takes its own -5/sec walk this tick (98 -> 93); the untouched second
+        // enemy just walks normally (95 -> 90). The knocked unit is now 3 lane-units behind the
+        // front tip (90), which exceeds Lane.frontlineEngagementRange (2.0) -- it drops out of
+        // the BU count even though it's still alive.
+        XCTAssertEqual(lane.enemyUnits[0].position, 93.0, accuracy: 0.0001)
+        XCTAssertEqual(lane.enemyUnits[1].position, 90.0, accuracy: 0.0001)
+        XCTAssertEqual(lane.currentBU(for: .enemy), 5) // only the un-knocked unit still counts
+    }
 }

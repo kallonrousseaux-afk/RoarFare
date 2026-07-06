@@ -66,12 +66,16 @@
         "name": "Ambush Striker",
         "statModifiers": {
           "maxHP": -10,
-          "attackDamage": 60,
+          "attackDamage": 0,
           "attackIntervalSeconds": 0,
           "grantsKnockbackResistance": false,
           "grantsKnockbackAttack": false
         },
-        "abilityDescription": "First attack after deployment deals bonus damage, then reverts to normal."
+        "abilityDescription": "First attack after deployment deals bonus damage, then reverts to normal.",
+        "ability": {
+          "type": "firstHitBonus",
+          "damageMultiplier": 3.0
+        }
       }
     ]
   },
@@ -101,7 +105,12 @@
           "grantsKnockbackResistance": false,
           "grantsKnockbackAttack": false
         },
-        "abilityDescription": "Loses personal damage; grants an attack-speed aura to units within 2 lane segments."
+        "abilityDescription": "Loses personal damage; grants an attack-speed aura to units within 2 lane segments.",
+        "ability": {
+          "type": "attackSpeedAura",
+          "range": 2.0,
+          "attackIntervalMultiplier": 0.7
+        }
       },
       {
         "id": "skull_crest_rammer",

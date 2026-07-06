@@ -6,16 +6,16 @@ import Foundation
 /// is rejected outright rather than queued, so the caller (UI layer) can decide how to
 /// communicate "no room right now" to the player.
 ///
-/// Known simplification: `currentBU(for:)` sums BU for every *alive* unit on a side regardless of
-/// lane position — it isn't scoped to units actually engaged at the front. So today, BU only
-/// frees up when a unit dies (`clearDefeatedUnits()`); a knockback shove doesn't free BU even
-/// though it moves the target, since BU accounting isn't position-aware yet. See `GAME_DESIGN.md`
-/// §4 for the discrepancy this creates against the documented design.
+/// BU accounting is position-aware: `currentBU(for:)` only counts units within
+/// `frontlineEngagementRange` of that side's most-advanced alive unit (its "front tip") — a unit
+/// that's fallen behind that cluster (e.g. via a knockback shove) stops counting, freeing room for
+/// a new deployment even though it's still alive. `frontlineEngagementRange` (2.0) is deliberately
+/// smaller than `knockbackDistance` (3.0) so a single landed knockback reliably drops the target
+/// out of the count rather than leaving it borderline.
 ///
 /// `tick(deltaTime:)` resolves one time-step of movement, single-target melee/ranged attacks,
-/// base damage, and knockback — see `GAME_DESIGN.md` §4: knockback is how a jammed frontline
-/// clears BU space mid-fight, since a shoved-back unit's position (and therefore its BU claim
-/// on the front) moves with it.
+/// base damage, knockback, the Era counter-damage multiplier (`EraCounters`), and evolution-branch
+/// abilities (`Ability`) — attack-speed auras and first-hit damage bonuses.
 public final class Lane {
     public static let frontlineBUCap = 10
     /// Tiny units get an additional headcount cap independent of the BU math — see
@@ -24,6 +24,9 @@ public final class Lane {
     public static let tinyUnitHeadcountCap = 6
     /// How far a landed knockback hit shoves the target back, in lane position units.
     public static let knockbackDistance = 3.0
+    /// How close to a side's front-most alive unit another unit on that side needs to be to still
+    /// count toward that side's frontline BU/headcount caps. See the type-level doc comment.
+    public static let frontlineEngagementRange = 2.0
 
     public let length: Double
     public private(set) var playerUnits: [DeployedUnit] = []
@@ -37,8 +40,10 @@ public final class Lane {
         self.enemyBaseHP = enemyBaseHP
     }
 
+    /// BU used on `side`'s engaged frontline right now — see the type-level doc comment for what
+    /// "engaged" means. A side with no alive units has 0 BU used, trivially.
     public func currentBU(for side: Side) -> Int {
-        units(for: side).reduce(0) { $0 + $1.blockingUnits }
+        frontlineUnits(for: side).reduce(0) { $0 + $1.blockingUnits }
     }
 
     public func remainingBU(for side: Side) -> Int {
@@ -46,7 +51,24 @@ public final class Lane {
     }
 
     private func tinyUnitCount(for side: Side) -> Int {
-        units(for: side).filter { $0.definition.sizeClass == .tiny }.count
+        frontlineUnits(for: side).filter { $0.definition.sizeClass == .tiny }.count
+    }
+
+    /// Alive units on `side` within `frontlineEngagementRange` of that side's front tip (its
+    /// most-advanced alive unit). A side with only one alive unit trivially has that unit as its
+    /// own front tip (distance 0), so a lone unit always counts regardless of where it personally
+    /// is — there's nothing else on that side competing with it for frontline room yet.
+    private func frontlineUnits(for side: Side) -> [DeployedUnit] {
+        let alive = units(for: side).filter { $0.isAlive }
+        guard let tip = frontTipPosition(for: side, aliveUnits: alive) else { return [] }
+        return alive.filter { abs($0.position - tip) <= Self.frontlineEngagementRange }
+    }
+
+    private func frontTipPosition(for side: Side, aliveUnits: [DeployedUnit]) -> Double? {
+        switch side {
+        case .player: return aliveUnits.map(\.position).max()
+        case .enemy: return aliveUnits.map(\.position).min()
+        }
     }
 
     /// Returns `false` (and deploys nothing) if the unit's BU cost would push the side over the
@@ -129,7 +151,8 @@ public final class Lane {
     ) {
         for i in attackers.indices {
             guard attackers[i].isAlive else { continue }
-            let stats = attackers[i].effectiveStats
+            var stats = attackers[i].effectiveStats
+            stats.attackIntervalSeconds *= Self.auraAttackIntervalMultiplier(for: attackers[i], allies: attackers)
 
             if attackers[i].attackCooldownRemaining > 0 {
                 attackers[i].attackCooldownRemaining -= deltaTime
@@ -141,7 +164,13 @@ public final class Lane {
                 defenders: defenders
             ) {
                 if attackers[i].attackCooldownRemaining <= 0 {
-                    defenders[targetIndex].currentHP -= stats.attackDamage
+                    let eraAdjusted = Self.eraAdjustedDamage(
+                        attackerEra: attackers[i].definition.era,
+                        defenderEra: defenders[targetIndex].definition.era,
+                        baseDamage: stats.attackDamage
+                    )
+                    let finalDamage = Self.applyFirstHitBonus(to: &attackers[i], baseDamage: eraAdjusted)
+                    defenders[targetIndex].currentHP -= finalDamage
                     attackers[i].attackCooldownRemaining = stats.attackIntervalSeconds
 
                     if stats.dealsKnockback, defenders[targetIndex].isAlive,
@@ -154,7 +183,8 @@ public final class Lane {
                 }
             } else if isAtOpposingBase(attackers[i], advancesTowardIncreasingPosition: advancesTowardIncreasingPosition) {
                 if attackers[i].attackCooldownRemaining <= 0 {
-                    defendersBaseHP -= stats.attackDamage
+                    let finalDamage = Self.applyFirstHitBonus(to: &attackers[i], baseDamage: stats.attackDamage)
+                    defendersBaseHP -= finalDamage
                     attackers[i].attackCooldownRemaining = stats.attackIntervalSeconds
                 }
             } else {
@@ -168,6 +198,35 @@ public final class Lane {
 
     private func isAtOpposingBase(_ unit: DeployedUnit, advancesTowardIncreasingPosition: Bool) -> Bool {
         advancesTowardIncreasingPosition ? unit.position >= length : unit.position <= 0
+    }
+
+    /// Applies `Ability.firstHitBonus` if `attacker` has one active and hasn't used it yet,
+    /// marking it used. Otherwise returns `baseDamage` unchanged.
+    private static func applyFirstHitBonus(to attacker: inout DeployedUnit, baseDamage: Int) -> Int {
+        guard case .firstHitBonus(let multiplier)? = attacker.activeAbility, !attacker.hasUsedFirstStrike else {
+            return baseDamage
+        }
+        attacker.hasUsedFirstStrike = true
+        return Int((Double(baseDamage) * multiplier).rounded())
+    }
+
+    /// See `EraCounters` — applied to unit-vs-unit hits only, not base damage (bases aren't
+    /// Era-typed).
+    private static func eraAdjustedDamage(attackerEra: Era, defenderEra: Era, baseDamage: Int) -> Int {
+        Int((Double(baseDamage) * EraCounters.damageMultiplier(attacker: attackerEra, defender: defenderEra)).rounded())
+    }
+
+    /// The strongest (lowest) `Ability.attackSpeedAura` multiplier among `unit`'s living
+    /// same-side allies currently in range, or 1.0 (no effect) if none apply. Auras don't stack.
+    private static func auraAttackIntervalMultiplier(for unit: DeployedUnit, allies: [DeployedUnit]) -> Double {
+        var best = 1.0
+        for ally in allies {
+            guard ally.id != unit.id, ally.isAlive else { continue }
+            guard case .attackSpeedAura(let range, let multiplier)? = ally.activeAbility else { continue }
+            guard abs(ally.position - unit.position) <= range else { continue }
+            best = min(best, multiplier)
+        }
+        return best
     }
 
     private static func nearestAliveDefenderInRange(
