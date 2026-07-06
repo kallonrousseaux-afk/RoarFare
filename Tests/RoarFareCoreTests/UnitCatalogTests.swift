@@ -4,7 +4,7 @@ import XCTest
 final class UnitCatalogTests: XCTestCase {
     func testBundledRosterDecodesAndCoversEverySizeClass() throws {
         let units = try UnitCatalog.loadAll()
-        XCTAssertGreaterThanOrEqual(units.count, 8)
+        XCTAssertGreaterThanOrEqual(units.count, 18)
 
         let sizeClasses = Set(units.map(\.sizeClass))
         for sizeClass in SizeClass.allCases {

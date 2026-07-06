@@ -193,5 +193,175 @@
       "dealsKnockback": false
     },
     "evolutionBranches": []
+  },
+  {
+    "id": "coelophysis",
+    "name": "Coelophysis",
+    "era": "triassic",
+    "sizeClass": "tiny",
+    "rarity": "common",
+    "deployCost": 55,
+    "baseStats": {
+      "maxHP": 35,
+      "attackDamage": 7,
+      "attackIntervalSeconds": 0.55,
+      "rangeUnits": 1.0,
+      "knockbackResistant": false,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "plateosaurus",
+    "name": "Plateosaurus",
+    "era": "triassic",
+    "sizeClass": "large",
+    "rarity": "rare",
+    "deployCost": 780,
+    "baseStats": {
+      "maxHP": 720,
+      "attackDamage": 50,
+      "attackIntervalSeconds": 1.5,
+      "rangeUnits": 1.0,
+      "knockbackResistant": true,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "dilophosaurus",
+    "name": "Dilophosaurus",
+    "era": "jurassic",
+    "sizeClass": "small",
+    "rarity": "rare",
+    "deployCost": 310,
+    "baseStats": {
+      "maxHP": 125,
+      "attackDamage": 34,
+      "attackIntervalSeconds": 0.9,
+      "rangeUnits": 1.2,
+      "knockbackResistant": false,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "allosaurus",
+    "name": "Allosaurus",
+    "era": "jurassic",
+    "sizeClass": "large",
+    "rarity": "epic",
+    "deployCost": 820,
+    "baseStats": {
+      "maxHP": 750,
+      "attackDamage": 60,
+      "attackIntervalSeconds": 1.5,
+      "rangeUnits": 1.0,
+      "knockbackResistant": true,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "brachiosaurus",
+    "name": "Brachiosaurus",
+    "era": "jurassic",
+    "sizeClass": "apex",
+    "rarity": "legendary",
+    "deployCost": 1700,
+    "baseStats": {
+      "maxHP": 2000,
+      "attackDamage": 150,
+      "attackIntervalSeconds": 2.5,
+      "rangeUnits": 1.0,
+      "knockbackResistant": true,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "utahraptor",
+    "name": "Utahraptor",
+    "era": "cretaceous",
+    "sizeClass": "small",
+    "rarity": "rare",
+    "deployCost": 330,
+    "baseStats": {
+      "maxHP": 140,
+      "attackDamage": 34,
+      "attackIntervalSeconds": 0.9,
+      "rangeUnits": 1.0,
+      "knockbackResistant": false,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "styracosaurus",
+    "name": "Styracosaurus",
+    "era": "cretaceous",
+    "sizeClass": "medium",
+    "rarity": "rare",
+    "deployCost": 520,
+    "baseStats": {
+      "maxHP": 440,
+      "attackDamage": 36,
+      "attackIntervalSeconds": 1.3,
+      "rangeUnits": 1.0,
+      "knockbackResistant": true,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "pentaceratops",
+    "name": "Pentaceratops",
+    "era": "cretaceous",
+    "sizeClass": "medium",
+    "rarity": "epic",
+    "deployCost": 600,
+    "baseStats": {
+      "maxHP": 500,
+      "attackDamage": 38,
+      "attackIntervalSeconds": 1.3,
+      "rangeUnits": 1.0,
+      "knockbackResistant": true,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "pachycephalosaurus",
+    "name": "Pachycephalosaurus",
+    "era": "cretaceous",
+    "sizeClass": "medium",
+    "rarity": "rare",
+    "deployCost": 480,
+    "baseStats": {
+      "maxHP": 350,
+      "attackDamage": 26,
+      "attackIntervalSeconds": 1.1,
+      "rangeUnits": 1.0,
+      "knockbackResistant": false,
+      "dealsKnockback": true
+    },
+    "evolutionBranches": []
+  },
+  {
+    "id": "spinosaurus",
+    "name": "Spinosaurus",
+    "era": "cretaceous",
+    "sizeClass": "apex",
+    "rarity": "legendary",
+    "deployCost": 1900,
+    "baseStats": {
+      "maxHP": 1500,
+      "attackDamage": 240,
+      "attackIntervalSeconds": 2.0,
+      "rangeUnits": 1.2,
+      "knockbackResistant": true,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": []
   }
 ]
