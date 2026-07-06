@@ -5,10 +5,9 @@ import Foundation
 /// side over the cap is rejected outright rather than queued, so the caller (UI layer) can decide
 /// how to communicate "no room right now" to the player.
 ///
-/// This type only enforces the BU cap and tracks who's alive on which side. It intentionally does
-/// not implement movement, attack timing, or knockback yet — that tick-by-tick combat simulation
-/// is the next pass, once this can be built and iterated on directly in Xcode rather than written
-/// blind without a compiler.
+/// `tick(deltaTime:)` resolves one time-step of movement, single-target melee/ranged attacks,
+/// and base damage. Knockback is not modeled yet — deferred until this can be built and
+/// iterated on directly in Xcode rather than written blind without a compiler.
 public final class Lane {
     public static let frontlineBUCap = 10
 
@@ -69,6 +68,94 @@ public final class Lane {
     public func clearDefeatedUnits() {
         playerUnits.removeAll { !$0.isAlive }
         enemyUnits.removeAll { !$0.isAlive }
+    }
+
+    /// Advances the battle by `deltaTime` seconds. Each alive unit either fights (if an enemy
+    /// unit, or the opposing base itself, is within its range) or walks toward the opposing end
+    /// of the lane. Player units resolve first each tick, then enemy units — a fixed, documented
+    /// turn order (matching the convention Plants vs. Zombies Heroes uses, per the research in
+    /// `GAME_DESIGN.md` §14.2) rather than an arbitrary one. Dead units are cleared at the end of
+    /// the tick, which is also what frees their BU back up for new deployments (`deploy(_:to:)`).
+    public func tick(deltaTime: Double, walkSpeed: Double = 5.0) {
+        resolveCombatAndMovement(
+            attackers: &playerUnits,
+            defenders: &enemyUnits,
+            advancesTowardIncreasingPosition: true,
+            defendersBaseHP: &enemyBaseHP,
+            deltaTime: deltaTime,
+            walkSpeed: walkSpeed
+        )
+        resolveCombatAndMovement(
+            attackers: &enemyUnits,
+            defenders: &playerUnits,
+            advancesTowardIncreasingPosition: false,
+            defendersBaseHP: &playerBaseHP,
+            deltaTime: deltaTime,
+            walkSpeed: walkSpeed
+        )
+        clearDefeatedUnits()
+    }
+
+    private func resolveCombatAndMovement(
+        attackers: inout [DeployedUnit],
+        defenders: inout [DeployedUnit],
+        advancesTowardIncreasingPosition: Bool,
+        defendersBaseHP: inout Int,
+        deltaTime: Double,
+        walkSpeed: Double
+    ) {
+        for i in attackers.indices {
+            guard attackers[i].isAlive else { continue }
+            let stats = attackers[i].effectiveStats
+
+            if attackers[i].attackCooldownRemaining > 0 {
+                attackers[i].attackCooldownRemaining -= deltaTime
+            }
+
+            if let targetIndex = Self.nearestAliveDefenderInRange(
+                from: attackers[i].position,
+                range: stats.rangeUnits,
+                defenders: defenders
+            ) {
+                if attackers[i].attackCooldownRemaining <= 0 {
+                    defenders[targetIndex].currentHP -= stats.attackDamage
+                    attackers[i].attackCooldownRemaining = stats.attackIntervalSeconds
+                }
+            } else if isAtOpposingBase(attackers[i], advancesTowardIncreasingPosition: advancesTowardIncreasingPosition) {
+                if attackers[i].attackCooldownRemaining <= 0 {
+                    defendersBaseHP -= stats.attackDamage
+                    attackers[i].attackCooldownRemaining = stats.attackIntervalSeconds
+                }
+            } else {
+                let delta = (advancesTowardIncreasingPosition ? 1.0 : -1.0) * walkSpeed * deltaTime
+                var newPosition = attackers[i].position + delta
+                newPosition = advancesTowardIncreasingPosition ? min(newPosition, length) : max(newPosition, 0)
+                attackers[i].position = newPosition
+            }
+        }
+    }
+
+    private func isAtOpposingBase(_ unit: DeployedUnit, advancesTowardIncreasingPosition: Bool) -> Bool {
+        advancesTowardIncreasingPosition ? unit.position >= length : unit.position <= 0
+    }
+
+    private static func nearestAliveDefenderInRange(
+        from position: Double,
+        range: Double,
+        defenders: [DeployedUnit]
+    ) -> Int? {
+        var bestIndex: Int?
+        var bestDistance = Double.infinity
+        for (index, defender) in defenders.enumerated() {
+            guard defender.isAlive else { continue }
+            let distance = abs(defender.position - position)
+            guard distance <= range else { continue }
+            if distance < bestDistance {
+                bestDistance = distance
+                bestIndex = index
+            }
+        }
+        return bestIndex
     }
 
     private func units(for side: Side) -> [DeployedUnit] {

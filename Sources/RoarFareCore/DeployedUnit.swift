@@ -6,10 +6,8 @@ public enum Side: String, Sendable {
     case enemy
 }
 
-/// A live instance of a `UnitDefinition` on the lane — this is what `Lane` tracks and what
-/// battle simulation code (a future addition, see `GAME_DESIGN.md` §11) will move/fight with.
-/// This pass only models deployment and effective stats; movement/attack/knockback ticking is
-/// intentionally left for a later pass once this can be built and iterated on in Xcode.
+/// A live instance of a `UnitDefinition` on the lane — this is what `Lane` moves and fights with
+/// in `Lane.tick(deltaTime:)`. Knockback is not modeled yet; see that method's doc comment.
 public struct DeployedUnit: Identifiable, Sendable {
     public let id: UUID
     public let definition: UnitDefinition
@@ -17,6 +15,9 @@ public struct DeployedUnit: Identifiable, Sendable {
     public let activeBranchID: String?
     public var currentHP: Int
     public var position: Double
+    /// Counts down to zero between attacks. Starts ready (0) so a unit doesn't sit idle on
+    /// arrival before its first swing.
+    public var attackCooldownRemaining: Double
 
     public init(definition: UnitDefinition, activeBranchID: String? = nil, position: Double) {
         self.id = UUID()
@@ -24,6 +25,7 @@ public struct DeployedUnit: Identifiable, Sendable {
         self.activeBranchID = activeBranchID
         self.position = position
         self.currentHP = Self.effectiveStats(definition: definition, activeBranchID: activeBranchID).maxHP
+        self.attackCooldownRemaining = 0
     }
 
     public var blockingUnits: Int {
