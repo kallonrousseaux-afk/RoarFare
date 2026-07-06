@@ -37,7 +37,7 @@ final class LaneDeploymentTests: XCTestCase {
         XCTAssertEqual(lane.currentBU(for: .player), 8)
     }
 
-    func testSixTinyUnitsFitUnderCap() {
+    func testTinyHeadcountCapBindsBeforeBUCapDoes() {
         let lane = Lane()
         let tiny = makeUnit(id: "tiny", sizeClass: .tiny)
 
@@ -46,10 +46,32 @@ final class LaneDeploymentTests: XCTestCase {
         }
         XCTAssertEqual(lane.currentBU(for: .player), 6)
 
-        // A 7th tiny still fits (7 <= 10)...
-        XCTAssertTrue(lane.deploy(tiny, to: .player))
-        // ...but a Large unit (5 BU) no longer does: 7 + 5 = 12 > 10.
+        // BU-wise there's room for a 7th tiny (6 + 1 = 7 <= 10), but GAME_DESIGN.md §4's
+        // documented 6-unit Tiny swarm cap is what actually rejects it here — the headcount cap
+        // and the BU cap are independent constraints, and this is the one that binds first.
+        XCTAssertFalse(lane.deploy(tiny, to: .player))
+        XCTAssertEqual(lane.currentBU(for: .player), 6)
+
+        // A non-Tiny unit isn't subject to the headcount cap at all, only the BU cap: 6 + 3 = 9 <= 10 fits.
+        let medium = makeUnit(id: "medium", sizeClass: .medium)
+        XCTAssertTrue(lane.deploy(medium, to: .player))
+        XCTAssertEqual(lane.currentBU(for: .player), 9)
+    }
+
+    func testBUCapRejectsNonTinyOverflowIndependentlyOfHeadcountCap() {
+        let lane = Lane()
+        for _ in 0..<5 {
+            XCTAssertTrue(lane.deploy(makeUnit(id: "tiny", sizeClass: .tiny), to: .player))
+        }
+        XCTAssertEqual(lane.currentBU(for: .player), 5)
+
+        // 5 Tiny units is under the 6-unit headcount cap, so what rejects the second Large below
+        // is purely the BU cap: the first Large fits exactly (5 + 5 = 10 <= 10)...
         let large = makeUnit(id: "large", sizeClass: .large)
+        XCTAssertTrue(lane.deploy(large, to: .player))
+        XCTAssertEqual(lane.currentBU(for: .player), 10)
+
+        // ...but a second Large has nowhere to go: 10 + 5 = 15 > 10.
         XCTAssertFalse(lane.deploy(large, to: .player))
     }
 

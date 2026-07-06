@@ -64,8 +64,8 @@ This is the single biggest mechanical departure from Battle Cats, where units st
 |---|---|---|---|
 | **Tiny** | 1 BU | Compsognathus, Microraptor | Up to 6 can occupy the lane's frontline simultaneously; die in 1-2 hits but swarm past big blockers |
 | **Small** | 2 BU | Velociraptor, Dilophosaurus | Standard DPS/skirmish units |
-| **Medium** | 3 BU | Triceratops, Stegosaurus | Frontline tanks, knockback-resistant |
-| **Large** | 5 BU | Ankylosaurus, Parasaurolophus | Heavy tank, high knockback resistance, area attacks |
+| **Medium** | 3 BU | Triceratops, Parasaurolophus | Frontline tanks, knockback-resistant |
+| **Large** | 5 BU | Ankylosaurus, Stegosaurus | Heavy tank, high knockback resistance, area attacks |
 | **Apex** | 8 BU (lane cap is 10 BU) | T. Rex, Spinosaurus, Giganotosaurus | Only 1 fits on the frontline at a time; massive single-target damage, cannot be knocked back at all, but a screen full of Tiny units can slip past them once they're engaged |
 
 The lane has a **10 BU frontline cap**. This means:
@@ -73,7 +73,7 @@ The lane has a **10 BU frontline cap**. This means:
 - Swarm strategies (six Tiny units = 6 BU) leave room to layer a Medium tank behind them.
 - Enemies have BU costs too, so the player must reason about "can I even fit a counter-unit into this lane right now," a resource-management axis Battle Cats never has (Battle Cats units always fit; the constraint there is purely economic/cost, not spatial).
 
-Knockback (an existing Battle Cats mechanic) interacts with BU: strong hits shove Small/Tiny units back a full lane segment, potentially clearing frontline BU space mid-fight — so knockback becomes a way to *unstick* a jammed lane, not just a damage-mitigation dodge.
+Knockback (an existing Battle Cats mechanic) interacts with BU: strong hits shove a non-resistant target back a fixed distance ("a lane segment" — in the current implementation, `Lane.knockbackDistance`), which can clear frontline BU space mid-fight if it moves the target out of the engaged frontline — so knockback becomes a way to *unstick* a jammed lane, not just a damage-mitigation dodge. **Current implementation status:** `Lane.tick()` applies the positional shove today, but BU accounting (`currentBU(for:)`) still counts every alive unit on a side regardless of position, not just units actually engaged at the front — so knockback doesn't yet free BU capacity in the shipped code, only a unit's death does (`clearDefeatedUnits()`). Making BU tracking position-aware is follow-up work, not yet done.
 
 ---
 
@@ -93,7 +93,9 @@ Example — **Deinonychus** (Cretaceous, Small):
 
 Every unit's evolution tree is documented as: Base → (Branch A / Branch B), each with its own icon variant, so the collection screen visually reflects the build decision, not just a level number.
 
-**Progression currency for evolution:** Fossil Fragments (from fossil digs, see §7) + in-stage-drop "Evolution Catalysts" specific to each biome, mirroring Battle Cats' Catfruit system but reframed as fossilized biological material specific to where the animal lived.
+**Progression currency for evolution:** in-stage-drop "Evolution Catalysts" specific to each biome, mirroring Battle Cats' Catfruit system but reframed as fossilized biological material specific to where the animal lived. (Fossil Fragments are the Dig Site pull currency and fund unit *leveling* — see §10 and `MONETIZATION.md` §1 — evolution runs on Catalysts alone so the two progression tracks don't compete for the same currency.)
+
+**Implementation status of branch-specific abilities:** the two example branches above describe unique combat behaviors (an aura, a first-attack-then-revert bonus). The current `RoarFareCore` code only models branches as static stat deltas (`StatModifiers` — flat HP/damage/attack-speed/knockback changes); there's no abilities engine yet to execute an aura effect or a one-time first-hit bonus that reverts afterward. `EvolutionBranch.abilityDescription` is flavor text describing the intended design, not yet backed by executable behavior — building that engine is deferred (see §11).
 
 ---
 
@@ -115,7 +117,7 @@ Reframes Battle Cats' Cat Capsule gacha as **Dig Sites**:
 
 - Each Dig Site is themed to a biome (Desert Dig, Arctic Dig, Swamp Dig, Coastal Dig, Volcanic Dig) and its pull pool is weighted toward Eras/units native to that biome (Desert Dig favors Cretaceous ceratopsians and ankylosaurs; Arctic Dig favors Ice Age megafauna).
 - Currency: **Fossil Fragments**, earned from stage clears and log-in rewards; premium currency **Amber Shards** can buy Fragments directly (this is the monetization-equivalent slot Battle Cats fills with Cat Food).
-- Pity system: guaranteed Epic+ every 30 digs at a site, guaranteed Legendary every 200 (numbers tunable, but a hard pity must exist — no fully unbounded gacha).
+- Pity system: a hard pity must exist — no fully unbounded gacha. Exact pull counts are specified once, in `MONETIZATION.md` §3, and shouldn't be duplicated here to avoid the two docs drifting out of sync (they already did once — an earlier draft of this line said "every 200," which `MONETIZATION.md` §3 later revised down to 90 against genre benchmarks, and this line wasn't updated to match until this pass).
 - **Banner site rotation:** limited-time Dig Sites (e.g., "Feathered Dinosaurs Dig," "Marine Reptile Dig") introduce new Eras/sub-eras gradually rather than launching the full roster day one.
 
 Rate transparency and a hard pity are non-negotiable design requirements, not just a nice-to-have — App Store policy requires disclosed odds for loot-box mechanics, and a hard pity keeps the system from reading as predatory.
@@ -157,7 +159,7 @@ This gives the campaign an actual narrative arc (rival dinos → environmental t
 ## 10. Progression & Economy Overview
 
 - **Base currencies:** Amber (in-stage deploy currency, also soft meta-currency for basic upgrades), Fossil Fragments (gacha pulls), Evolution Catalysts (biome-specific evolution material), Amber Shards (premium — see [`docs/MONETIZATION.md`](MONETIZATION.md) for the full IAP catalog and gacha economy this currency drives).
-- **Unit leveling:** flat XP-based level-up using Fossil Fragments + Amber, capped per rarity tier (mirrors Battle Cats' Cat Food + XP leveling, no departure needed here — it isn't a differentiation lever worth spending novelty budget on).
+- **Unit leveling:** flat XP-based level-up using Fossil Fragments, capped per rarity tier (mirrors Battle Cats' Cat Food + XP leveling, no departure needed here — it isn't a differentiation lever worth spending novelty budget on). Amber is intentionally not part of leveling — it stays a pure in-battle deploy currency (`MONETIZATION.md` §1), so it never doubles as a meta-progression spend.
 - **Stage structure:** World Map → Biome (group of ~12 stages) → Boss stage → unlocks next Biome + its Dig Site. Biomes double as both level packs and gacha-pool themes, so map progression and collection-building reinforce each other.
 - **Energy/stamina system:** standard timed-regen stamina gate per stage attempt (same as Battle Cats' Energy) — not a differentiation target, keep it standard.
 
@@ -173,6 +175,7 @@ Building the whole system above at once is not a v1. Recommended MVP cut, in ord
 4. **A single Dig Site** with a basic pity counter and the copy-ladder duplicate system (`MONETIZATION.md` §3.1) — defer banner rotation and premium currency to post-MVP.
 5. **The Fossil Record** (§13) — cheap to build (a discovery flag + one-time reward per unit) and worth including alongside the Dig Site rather than deferring.
 6. Defer: Pack Hunting synergies, Extinction Events, Marine/Sky sub-eras, the full 6-tier enemy arc, and Rival Grounds PvP (§14) — PvP in particular needs a backend for snapshot storage/matchmaking that the MVP's offline-first scope doesn't otherwise require, so it comes after the core PvE loop is proven, not alongside it.
+7. Also defer, even though it isn't called out elsewhere: the **Era trait/counter web** from §3 (armor vs. burst, slow/freeze, ranged-kites-slow, etc. — none of this is in the data model or the battle sim yet, just the Era labels themselves) and an **abilities engine** for branch-specific behaviors that aren't flat stat deltas (Herd Caller's aura, Ambush Striker's first-hit-then-revert bonus — see §5's implementation-status note). Both are real, non-trivial systems, not oversights to quietly patch in.
 
 This scope proves out the lane-blocking mechanic and branching evolution — the two systems that make RoarFare not just a reskin — before investing in the meta-layer breadth.
 
@@ -181,7 +184,7 @@ This scope proves out the lane-blocking mechanic and branching evolution — the
 ## 12. Tech Notes (Swift / Xcode)
 
 - **Engine:** SpriteKit is sufficient for a 2D single-lane tower-offense game and integrates natively with Xcode/Swift without a third-party engine dependency; SwiftUI can wrap the meta-game screens (collection, dig site, world map) around an `SKScene`-hosted battle view.
-- **Data-driven units:** define units as Swift `Codable` structs backed by a bundled JSON (or `.plist`) table (Era, size class/BU cost, HP, damage, attack speed, range, traits, evolution branch refs) rather than hardcoding per-unit subclasses — this keeps adding the ~100+ unit roster from becoming a code-scale problem, and lets Claude generate/edit unit data as structured JSON rather than Swift code.
+- **Data-driven units:** define units as Swift `Codable` structs backed by a bundled JSON (or `.plist`) table (Era, size class/BU cost, HP, damage, attack speed, range, evolution branch refs — trait/counter-web fields per §3 are deferred along with the rest of that system, see §11) rather than hardcoding per-unit subclasses — this keeps adding the ~100+ unit roster from becoming a code-scale problem, and lets Claude generate/edit unit data as structured JSON rather than Swift code. **Codable gotcha:** default parameter values on a struct's memberwise initializer are not used by Swift's synthesized `Decodable` conformance — every field needs an explicit value in the JSON regardless of what default the Swift `init` declares, or decoding throws on a missing key.
 - **Lane/BU collision:** model the lane as a 1D coordinate space with per-unit BU "footprint," not a full 2D physics simulation — resolve blocking as a simple occupied-width check, since real physics is unnecessary overhead for a lane game.
 - **Save data / gacha state:** local persistence via `SwiftData` (or `Codable` + file storage) is enough for an offline-first MVP; only add a backend once live-ops (banner rotation, leaderboards) is actually in scope.
 - **PvP backend:** CloudKit is a reasonable first choice for Tier 1 — it can store defense-squad snapshots and drive matchmaking/leaderboards without standing up custom server infrastructure, and it's already first-party in the Apple toolchain. For Tier 2, use GameKit's `GKMatch` for real-time transport instead of building a custom server (see §14.2) — Apple's matchmaking/relay covers this natively in Swift. Reserve an actual third-party authoritative server for the point (if ever) Tier 2 becomes competitively significant enough that GameKit's peer-to-peer trust model stops being good enough.
