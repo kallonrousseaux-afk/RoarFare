@@ -7,7 +7,7 @@ public enum Side: String, Sendable {
 }
 
 /// A live instance of a `UnitDefinition` on the lane — this is what `Lane` moves and fights with
-/// in `Lane.tick(deltaTime:)`. Knockback is not modeled yet; see that method's doc comment.
+/// in `Lane.tick(deltaTime:)`, including knockback.
 public struct DeployedUnit: Identifiable, Sendable {
     public let id: UUID
     public let definition: UnitDefinition

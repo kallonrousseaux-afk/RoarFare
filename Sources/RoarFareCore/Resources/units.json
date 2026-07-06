@@ -11,7 +11,8 @@
       "attackDamage": 8,
       "attackIntervalSeconds": 0.6,
       "rangeUnits": 1.0,
-      "knockbackResistant": false
+      "knockbackResistant": false,
+      "dealsKnockback": false
     },
     "evolutionBranches": []
   },
@@ -27,7 +28,8 @@
       "attackDamage": 30,
       "attackIntervalSeconds": 0.9,
       "rangeUnits": 1.0,
-      "knockbackResistant": false
+      "knockbackResistant": false,
+      "dealsKnockback": false
     },
     "evolutionBranches": []
   },
@@ -43,7 +45,8 @@
       "attackDamage": 32,
       "attackIntervalSeconds": 0.9,
       "rangeUnits": 1.0,
-      "knockbackResistant": false
+      "knockbackResistant": false,
+      "dealsKnockback": false
     },
     "evolutionBranches": [
       {
@@ -53,7 +56,8 @@
           "maxHP": 0,
           "attackDamage": 0,
           "attackIntervalSeconds": 0,
-          "grantsKnockbackResistance": false
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
         },
         "abilityDescription": "Unlocks the Pack Hunting bonus when fielded with other raptors (see GAME_DESIGN.md §6)."
       },
@@ -64,7 +68,8 @@
           "maxHP": -10,
           "attackDamage": 60,
           "attackIntervalSeconds": 0,
-          "grantsKnockbackResistance": false
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
         },
         "abilityDescription": "First attack after deployment deals bonus damage, then reverts to normal."
       }
@@ -82,7 +87,8 @@
       "attackDamage": 24,
       "attackIntervalSeconds": 1.2,
       "rangeUnits": 1.0,
-      "knockbackResistant": false
+      "knockbackResistant": false,
+      "dealsKnockback": false
     },
     "evolutionBranches": [
       {
@@ -92,7 +98,8 @@
           "maxHP": 0,
           "attackDamage": -24,
           "attackIntervalSeconds": 0,
-          "grantsKnockbackResistance": false
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
         },
         "abilityDescription": "Loses personal damage; grants an attack-speed aura to units within 2 lane segments."
       },
@@ -103,7 +110,8 @@
           "maxHP": 60,
           "attackDamage": 10,
           "attackIntervalSeconds": 0,
-          "grantsKnockbackResistance": true
+          "grantsKnockbackResistance": true,
+          "grantsKnockbackAttack": true
         },
         "abilityDescription": "Gains knockback resistance and a charge attack with heavy knockback on hit."
       }
@@ -121,7 +129,8 @@
       "attackDamage": 34,
       "attackIntervalSeconds": 1.3,
       "rangeUnits": 1.0,
-      "knockbackResistant": true
+      "knockbackResistant": true,
+      "dealsKnockback": false
     },
     "evolutionBranches": []
   },
@@ -137,7 +146,8 @@
       "attackDamage": 55,
       "attackIntervalSeconds": 1.6,
       "rangeUnits": 1.0,
-      "knockbackResistant": true
+      "knockbackResistant": true,
+      "dealsKnockback": false
     },
     "evolutionBranches": []
   },
@@ -153,7 +163,8 @@
       "attackDamage": 48,
       "attackIntervalSeconds": 1.4,
       "rangeUnits": 1.2,
-      "knockbackResistant": true
+      "knockbackResistant": true,
+      "dealsKnockback": false
     },
     "evolutionBranches": []
   },
@@ -169,7 +180,8 @@
       "attackDamage": 220,
       "attackIntervalSeconds": 2.2,
       "rangeUnits": 1.0,
-      "knockbackResistant": true
+      "knockbackResistant": true,
+      "dealsKnockback": false
     },
     "evolutionBranches": []
   }

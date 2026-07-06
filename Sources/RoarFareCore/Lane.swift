@@ -6,10 +6,13 @@ import Foundation
 /// how to communicate "no room right now" to the player.
 ///
 /// `tick(deltaTime:)` resolves one time-step of movement, single-target melee/ranged attacks,
-/// and base damage. Knockback is not modeled yet — deferred until this can be built and
-/// iterated on directly in Xcode rather than written blind without a compiler.
+/// base damage, and knockback — see `GAME_DESIGN.md` §4: knockback is how a jammed frontline
+/// clears BU space mid-fight, since a shoved-back unit's position (and therefore its BU claim
+/// on the front) moves with it.
 public final class Lane {
     public static let frontlineBUCap = 10
+    /// How far a landed knockback hit shoves the target back, in lane position units.
+    public static let knockbackDistance = 3.0
 
     public let length: Double
     public private(set) var playerUnits: [DeployedUnit] = []
@@ -120,6 +123,14 @@ public final class Lane {
                 if attackers[i].attackCooldownRemaining <= 0 {
                     defenders[targetIndex].currentHP -= stats.attackDamage
                     attackers[i].attackCooldownRemaining = stats.attackIntervalSeconds
+
+                    if stats.dealsKnockback, defenders[targetIndex].isAlive,
+                       !defenders[targetIndex].effectiveStats.knockbackResistant {
+                        let shift = Self.knockbackDistance * (advancesTowardIncreasingPosition ? 1.0 : -1.0)
+                        var newPosition = defenders[targetIndex].position + shift
+                        newPosition = advancesTowardIncreasingPosition ? min(newPosition, length) : max(newPosition, 0)
+                        defenders[targetIndex].position = newPosition
+                    }
                 }
             } else if isAtOpposingBase(attackers[i], advancesTowardIncreasingPosition: advancesTowardIncreasingPosition) {
                 if attackers[i].attackCooldownRemaining <= 0 {

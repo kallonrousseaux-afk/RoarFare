@@ -35,5 +35,10 @@ final class UnitCatalogTests: XCTestCase {
 
         // The underlying definition's base stats must stay untouched by the branch choice.
         XCTAssertEqual(parasaur.baseStats.maxHP, baseForm.effectiveStats.maxHP)
+
+        // Skull-Crest Rammer is specifically the "charge attack with heavy knockback" branch
+        // from GAME_DESIGN.md §5 — confirm the new dealsKnockback field decoded and applied.
+        XCTAssertFalse(baseForm.effectiveStats.dealsKnockback)
+        XCTAssertTrue(rammer.effectiveStats.dealsKnockback)
     }
 }

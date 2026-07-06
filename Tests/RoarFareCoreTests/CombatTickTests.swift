@@ -8,7 +8,9 @@ final class CombatTickTests: XCTestCase {
         maxHP: Int = 100,
         attackDamage: Int = 10,
         attackIntervalSeconds: Double = 1.0,
-        rangeUnits: Double = 1.0
+        rangeUnits: Double = 1.0,
+        knockbackResistant: Bool = false,
+        dealsKnockback: Bool = false
     ) -> UnitDefinition {
         UnitDefinition(
             id: id,
@@ -21,7 +23,9 @@ final class CombatTickTests: XCTestCase {
                 maxHP: maxHP,
                 attackDamage: attackDamage,
                 attackIntervalSeconds: attackIntervalSeconds,
-                rangeUnits: rangeUnits
+                rangeUnits: rangeUnits,
+                knockbackResistant: knockbackResistant,
+                dealsKnockback: dealsKnockback
             )
         )
     }
@@ -94,5 +98,48 @@ final class CombatTickTests: XCTestCase {
 
         XCTAssertEqual(lane.playerUnits.count, 0)
         XCTAssertEqual(lane.currentBU(for: .player), 0)
+    }
+
+    func testKnockbackPushesNonResistantTargetBack() {
+        let lane = Lane(length: 20)
+        // rangeUnits: 0 so this unit never itself finds a target in range — it only ever walks
+        // or (once knocked) sits at wherever it landed. Keeps the trace to just one moving part.
+        lane.deploy(makeUnit(id: "enemy", maxHP: 1000, rangeUnits: 0), to: .enemy)
+
+        // Let it advance into the lane for a tick before the attacker even exists, so it isn't
+        // still sitting at the length-clamped spawn point when it gets hit (a hit there would
+        // have nowhere further back to go, masking the knockback shift entirely).
+        lane.tick(deltaTime: 1.0, walkSpeed: 5.0)
+        XCTAssertEqual(lane.enemyUnits[0].position, 15.0, accuracy: 0.0001)
+
+        lane.deploy(
+            makeUnit(id: "rammer", attackDamage: 10, attackIntervalSeconds: 1.0, rangeUnits: 20, dealsKnockback: true),
+            to: .player
+        )
+        lane.tick(deltaTime: 1.0, walkSpeed: 5.0)
+
+        // Hit for 10 (-> 990 HP), knocked +3 (15 -> 18), then still takes its own -5/sec walk
+        // this same tick (18 -> 13) — 3 further back than the 10 it would've reached unknocked.
+        XCTAssertEqual(lane.enemyUnits[0].currentHP, 990)
+        XCTAssertEqual(lane.enemyUnits[0].position, 13.0, accuracy: 0.0001)
+    }
+
+    func testKnockbackResistantTargetTakesDamageButIsNotShoved() {
+        let lane = Lane(length: 20)
+        lane.deploy(makeUnit(id: "tank", maxHP: 1000, rangeUnits: 0, knockbackResistant: true), to: .enemy)
+
+        lane.tick(deltaTime: 1.0, walkSpeed: 5.0)
+        XCTAssertEqual(lane.enemyUnits[0].position, 15.0, accuracy: 0.0001)
+
+        lane.deploy(
+            makeUnit(id: "rammer", attackDamage: 10, attackIntervalSeconds: 1.0, rangeUnits: 20, dealsKnockback: true),
+            to: .player
+        )
+        lane.tick(deltaTime: 1.0, walkSpeed: 5.0)
+
+        // Still takes the hit, but knockbackResistant means no shove: 15 (unchanged by the hit)
+        // minus its own -5/sec walk lands exactly on the un-knocked baseline of 10.
+        XCTAssertEqual(lane.enemyUnits[0].currentHP, 990)
+        XCTAssertEqual(lane.enemyUnits[0].position, 10.0, accuracy: 0.0001)
     }
 }
