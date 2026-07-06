@@ -7,6 +7,7 @@ A dinosaur-themed lane tower-offense game in the spirit of *The Battle Cats*, di
 - [`docs/GAME_DESIGN.md`](docs/GAME_DESIGN.md) — full game design document: core loop, era system, size classes, evolution, fossil dig gacha, extinction events, enemy/narrative arc, MVP scope, and tech notes.
 - [`docs/ART_BIBLE.md`](docs/ART_BIBLE.md) — visual identity: tone, silhouette rules, color language (era palettes, rarity, factions), environment art, UI style, and branding.
 - [`docs/MONETIZATION.md`](docs/MONETIZATION.md) — gacha economy and IAP spec: currency stack, purchasable SKUs, pity math, App Store loot-box compliance, and StoreKit 2 implementation notes.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — the step-by-step path from this repo's current state to a shipped App Store game: phase-by-phase goals, steps, and exit criteria, starting with "get this compiling in Xcode."
 
 ## Code
 
