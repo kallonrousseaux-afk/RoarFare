@@ -333,11 +333,17 @@ final class Lane {
 let bundledUnits: [UnitDefinition] = [
     UnitDefinition(
         id: "compsognathus", name: "Compsognathus", era: .triassic, sizeClass: .tiny, rarity: .common,
-        deployCost: 60, baseStats: UnitStats(maxHP: 40, attackDamage: 8, attackIntervalSeconds: 0.6, rangeUnits: 1.0)
+        deployCost: 60, baseStats: UnitStats(maxHP: 40, attackDamage: 8, attackIntervalSeconds: 0.6, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "swift_scavenger", name: "Swift Scavenger", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Faster attacks.")
+        ]
     ),
     UnitDefinition(
         id: "velociraptor", name: "Velociraptor", era: .cretaceous, sizeClass: .small, rarity: .rare,
-        deployCost: 300, baseStats: UnitStats(maxHP: 120, attackDamage: 30, attackIntervalSeconds: 0.9, rangeUnits: 1.0)
+        deployCost: 300, baseStats: UnitStats(maxHP: 120, attackDamage: 30, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "pack_hunter", name: "Pack Hunter", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "Sharper coordinated strikes, more damage.")
+        ]
     ),
     UnitDefinition(
         id: "deinonychus", name: "Deinonychus", era: .cretaceous, sizeClass: .small, rarity: .rare,
@@ -357,62 +363,124 @@ let bundledUnits: [UnitDefinition] = [
     ),
     UnitDefinition(
         id: "triceratops", name: "Triceratops", era: .cretaceous, sizeClass: .medium, rarity: .rare,
-        deployCost: 500, baseStats: UnitStats(maxHP: 420, attackDamage: 34, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true)
+        deployCost: 500, baseStats: UnitStats(maxHP: 420, attackDamage: 34, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "bulwark_horn", name: "Bulwark Horn", statModifiers: StatModifiers(maxHP: 80, grantsKnockbackAttack: true), abilityDescription: "Horn charge knocks enemies back.")
+        ]
     ),
     UnitDefinition(
         id: "stegosaurus", name: "Stegosaurus", era: .jurassic, sizeClass: .large, rarity: .rare,
-        deployCost: 750, baseStats: UnitStats(maxHP: 700, attackDamage: 55, attackIntervalSeconds: 1.6, rangeUnits: 1.0, knockbackResistant: true)
+        deployCost: 750, baseStats: UnitStats(maxHP: 700, attackDamage: 55, attackIntervalSeconds: 1.6, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "thagomizer_guardian", name: "Thagomizer Guardian", statModifiers: StatModifiers(attackDamage: 15, grantsKnockbackAttack: true), abilityDescription: "Tail-spike swing knocks enemies back.")
+        ]
     ),
     UnitDefinition(
         id: "ankylosaurus", name: "Ankylosaurus", era: .cretaceous, sizeClass: .large, rarity: .epic,
-        deployCost: 800, baseStats: UnitStats(maxHP: 780, attackDamage: 48, attackIntervalSeconds: 1.4, rangeUnits: 1.2, knockbackResistant: true)
+        deployCost: 800, baseStats: UnitStats(maxHP: 780, attackDamage: 48, attackIntervalSeconds: 1.4, rangeUnits: 1.2, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "club_tail_breaker", name: "Club-Tail Breaker", statModifiers: StatModifiers(attackDamage: 20, grantsKnockbackAttack: true), abilityDescription: "Heavier tail-club hits knock enemies back.")
+        ]
     ),
     UnitDefinition(
         id: "tyrannosaurus_rex", name: "Tyrannosaurus Rex", era: .cretaceous, sizeClass: .apex, rarity: .legendary,
-        deployCost: 1800, baseStats: UnitStats(maxHP: 1600, attackDamage: 220, attackIntervalSeconds: 2.2, rangeUnits: 1.0, knockbackResistant: true)
+        deployCost: 1800, baseStats: UnitStats(maxHP: 1600, attackDamage: 220, attackIntervalSeconds: 2.2, rangeUnits: 1.0, knockbackResistant: true),
+        // SSR-tier: two evolutions, per the current art/roster pass.
+        evolutionBranches: [
+            EvolutionBranch(id: "tyrant_king", name: "Tyrant King", statModifiers: StatModifiers(maxHP: 200, attackDamage: 40), abilityDescription: "Pure apex-predator scaling: more HP, more damage."),
+            EvolutionBranch(id: "bone_crusher", name: "Bone-Crusher", statModifiers: StatModifiers(attackDamage: 80, attackIntervalSeconds: 0.3, grantsKnockbackAttack: true), abilityDescription: "Slower but devastating bite that knocks enemies back.")
+        ]
     ),
     // MARK: Roster expansion -- fills out era/size coverage and builds three units the design
     // doc already named (Pack Hunting §6's raptor pack and ceratopsian wall) but never actually
     // implemented: Utahraptor, Styracosaurus, Pentaceratops.
     UnitDefinition(
         id: "coelophysis", name: "Coelophysis", era: .triassic, sizeClass: .tiny, rarity: .common,
-        deployCost: 55, baseStats: UnitStats(maxHP: 35, attackDamage: 7, attackIntervalSeconds: 0.55, rangeUnits: 1.0)
+        deployCost: 55, baseStats: UnitStats(maxHP: 35, attackDamage: 7, attackIntervalSeconds: 0.55, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "swarm_runner", name: "Swarm Runner", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Faster attacks.")
+        ]
     ),
     UnitDefinition(
         id: "plateosaurus", name: "Plateosaurus", era: .triassic, sizeClass: .large, rarity: .rare,
-        deployCost: 780, baseStats: UnitStats(maxHP: 720, attackDamage: 50, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true)
+        deployCost: 780, baseStats: UnitStats(maxHP: 720, attackDamage: 50, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "titan_browser", name: "Titan Browser", statModifiers: StatModifiers(maxHP: 100), abilityDescription: "Bulkier frontline tank.")
+        ]
     ),
     UnitDefinition(
         id: "dilophosaurus", name: "Dilophosaurus", era: .jurassic, sizeClass: .small, rarity: .rare,
-        deployCost: 310, baseStats: UnitStats(maxHP: 125, attackDamage: 34, attackIntervalSeconds: 0.9, rangeUnits: 1.2)
+        deployCost: 310, baseStats: UnitStats(maxHP: 125, attackDamage: 34, attackIntervalSeconds: 0.9, rangeUnits: 1.2),
+        evolutionBranches: [
+            EvolutionBranch(id: "venom_spitter", name: "Venom Spitter", statModifiers: StatModifiers(attackDamage: 10), abilityDescription: "Venomous bite deals extra damage.")
+        ]
     ),
     UnitDefinition(
         id: "allosaurus", name: "Allosaurus", era: .jurassic, sizeClass: .large, rarity: .epic,
-        deployCost: 820, baseStats: UnitStats(maxHP: 750, attackDamage: 60, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true)
+        deployCost: 820, baseStats: UnitStats(maxHP: 750, attackDamage: 60, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "apex_stalker", name: "Apex Stalker", statModifiers: StatModifiers(attackDamage: 25), abilityDescription: "Sharper hunting instincts, more damage.")
+        ]
     ),
     UnitDefinition(
         id: "brachiosaurus", name: "Brachiosaurus", era: .jurassic, sizeClass: .apex, rarity: .legendary,
-        deployCost: 1700, baseStats: UnitStats(maxHP: 2000, attackDamage: 150, attackIntervalSeconds: 2.5, rangeUnits: 1.0, knockbackResistant: true)
+        deployCost: 1700, baseStats: UnitStats(maxHP: 2000, attackDamage: 150, attackIntervalSeconds: 2.5, rangeUnits: 1.0, knockbackResistant: true),
+        // SSR-tier: two evolutions.
+        evolutionBranches: [
+            EvolutionBranch(id: "sky_reacher", name: "Sky Reacher", statModifiers: StatModifiers(maxHP: 400), abilityDescription: "Even more HP -- a true walking fortress."),
+            EvolutionBranch(id: "canopy_titan", name: "Canopy Titan", statModifiers: StatModifiers(attackDamage: -50), abilityDescription: "Loses personal damage; grants an attack-speed aura to nearby allies.", ability: .attackSpeedAura(range: 12.0, attackIntervalMultiplier: 0.8))
+        ]
     ),
     UnitDefinition(
         id: "utahraptor", name: "Utahraptor", era: .cretaceous, sizeClass: .small, rarity: .rare,
-        deployCost: 330, baseStats: UnitStats(maxHP: 140, attackDamage: 34, attackIntervalSeconds: 0.9, rangeUnits: 1.0)
+        deployCost: 330, baseStats: UnitStats(maxHP: 140, attackDamage: 34, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "slash_hunter", name: "Slash Hunter", statModifiers: StatModifiers(attackDamage: 12), abilityDescription: "Bigger sickle-claw damage.")
+        ]
     ),
     UnitDefinition(
         id: "styracosaurus", name: "Styracosaurus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
-        deployCost: 520, baseStats: UnitStats(maxHP: 440, attackDamage: 36, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true)
+        deployCost: 520, baseStats: UnitStats(maxHP: 440, attackDamage: 36, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "spike_crown", name: "Spike Crown", statModifiers: StatModifiers(maxHP: 60, grantsKnockbackResistance: true), abilityDescription: "Reinforced frill, even harder to knock back.")
+        ]
     ),
     UnitDefinition(
         id: "pentaceratops", name: "Pentaceratops", era: .cretaceous, sizeClass: .medium, rarity: .epic,
-        deployCost: 600, baseStats: UnitStats(maxHP: 500, attackDamage: 38, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true)
+        deployCost: 600, baseStats: UnitStats(maxHP: 500, attackDamage: 38, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "five_horn_vanguard", name: "Five-Horn Vanguard", statModifiers: StatModifiers(maxHP: 80, attackDamage: 10), abilityDescription: "All five horns reinforced -- tougher and stronger.")
+        ]
     ),
     UnitDefinition(
         id: "pachycephalosaurus", name: "Pachycephalosaurus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
-        deployCost: 480, baseStats: UnitStats(maxHP: 350, attackDamage: 26, attackIntervalSeconds: 1.1, rangeUnits: 1.0, dealsKnockback: true)
+        deployCost: 480, baseStats: UnitStats(maxHP: 350, attackDamage: 26, attackIntervalSeconds: 1.1, rangeUnits: 1.0, dealsKnockback: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "dome_rammer", name: "Dome Rammer", statModifiers: StatModifiers(attackDamage: 14, grantsKnockbackAttack: true), abilityDescription: "Harder headbutt, still knocks enemies back.")
+        ]
     ),
     UnitDefinition(
         id: "spinosaurus", name: "Spinosaurus", era: .cretaceous, sizeClass: .apex, rarity: .legendary,
-        deployCost: 1900, baseStats: UnitStats(maxHP: 1500, attackDamage: 240, attackIntervalSeconds: 2.0, rangeUnits: 1.2, knockbackResistant: true)
+        deployCost: 1900, baseStats: UnitStats(maxHP: 1500, attackDamage: 240, attackIntervalSeconds: 2.0, rangeUnits: 1.2, knockbackResistant: true),
+        // SSR-tier: two evolutions.
+        evolutionBranches: [
+            EvolutionBranch(id: "river_tyrant", name: "River Tyrant", statModifiers: StatModifiers(maxHP: 300, attackDamage: 40), abilityDescription: "Pure apex scaling: more HP, more damage."),
+            EvolutionBranch(id: "sail_predator", name: "Sail Predator", statModifiers: StatModifiers(maxHP: -50), abilityDescription: "First attack after deployment deals bonus damage.", ability: .firstHitBonus(damageMultiplier: 2.5))
+        ]
+    ),
+    UnitDefinition(
+        id: "iguanodon", name: "Iguanodon", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 470, baseStats: UnitStats(maxHP: 340, attackDamage: 22, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "thumb_spike_defender", name: "Thumb-Spike Defender", statModifiers: StatModifiers(maxHP: 50, grantsKnockbackResistance: true), abilityDescription: "Braces with its thumb spike, harder to knock back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "ceratosaurus", name: "Ceratosaurus", era: .jurassic, sizeClass: .medium, rarity: .rare,
+        deployCost: 530, baseStats: UnitStats(maxHP: 380, attackDamage: 38, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "horn_snout_hunter", name: "Horn-Snout Hunter", statModifiers: StatModifiers(attackDamage: 14), abilityDescription: "More aggressive hunting stance, more damage.")
+        ]
     )
 ]
 
