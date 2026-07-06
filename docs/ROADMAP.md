@@ -6,9 +6,11 @@ Model guidance per phase is included since it matters for cost/quality — see t
 
 ---
 
-## Phase 0 — Get the code onto a Mac and compiling
+## Phase 0 — Get the code onto a Mac and compiling — ✅ DONE
 
-**Goal:** confirm `RoarFareCore` actually builds and its test suite actually passes. Everything in this repo has been hand-traced and reviewed twice, but never compiled — this environment has no Swift toolchain and no way to get one (network policy blocks `download.swift.org`).
+Built clean and the full test suite passed, all green, first try. Every hand-traced piece of logic in this repo — BU-cap math, knockback, the attack-speed aura, the first-hit bonus, the Era counter table — held up against a real compiler and test runner for the first time. This is the first genuinely verified milestone in the project; everything before this was reasoned-through but unconfirmed.
+
+**Goal (met):** confirm `RoarFareCore` actually builds and its test suite actually passes. Everything in this repo has been hand-traced and reviewed twice, but never compiled — this environment has no Swift toolchain and no way to get one (network policy blocks `download.swift.org`).
 
 **Steps:**
 1. Pull the `claude/dino-tower-defense-design-34ll7v` branch onto a Mac with Xcode installed.
@@ -129,6 +131,6 @@ Everything explicitly deferred across the design docs, roughly in the order it's
 
 ## Immediate next 3 actions, right now
 
-1. Get this repo onto a Mac and run Phase 0 — nothing in this roadmap is actually verified yet, including Phase 2's code, which was written and hand-traced but never compiled or played.
-2. When Phase 0 turns up compiler errors (expect some — none of this has touched a real Swift compiler), fix them and re-run the test suite before writing any new code on top.
-3. Don't start Phase 4 (monetization) or Phase 5 (art) early just because they feel more exciting than Phase 0/1 — the roadmap is ordered this way because building payment rails or final art on top of an unverified, unplayed core is the most common way a project like this quietly goes sideways.
+1. **Start Phase 1** — create the Xcode iOS App target, add `RoarFareCore` as a local package dependency, and build the `SKScene` that renders `Lane` state. This is the phase most worth doing interactively (you driving Xcode, not code written blind), since it's the first point you'll actually feel whether BU-blocking and knockback are fun.
+2. Keep committing and pushing as you go, even mid-phase — don't let a working Simulator build sit uncommitted.
+3. Still don't start Phase 4 (monetization) or Phase 5 (art) early just because they feel more exciting than Phase 1 — build the playable loop first.
