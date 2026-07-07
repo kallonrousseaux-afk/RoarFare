@@ -4,11 +4,27 @@ import XCTest
 final class UnitCatalogTests: XCTestCase {
     func testBundledRosterDecodesAndCoversEverySizeClass() throws {
         let units = try UnitCatalog.loadAll()
-        XCTAssertGreaterThanOrEqual(units.count, 18)
+        XCTAssertGreaterThanOrEqual(units.count, 20)
 
         let sizeClasses = Set(units.map(\.sizeClass))
         for sizeClass in SizeClass.allCases {
             XCTAssertTrue(sizeClasses.contains(sizeClass), "No unit found for \(sizeClass)")
+        }
+    }
+
+    func testEveryUnitHasAtLeastOneEvolutionBranch() throws {
+        let units = try UnitCatalog.loadAll()
+        for unit in units {
+            XCTAssertFalse(unit.evolutionBranches.isEmpty, "\(unit.id) has no evolution branches")
+        }
+    }
+
+    func testLegendaryUnitsHaveTwoEvolutionBranches() throws {
+        let units = try UnitCatalog.loadAll()
+        let legendaries = units.filter { $0.rarity == .legendary }
+        XCTAssertGreaterThanOrEqual(legendaries.count, 1)
+        for unit in legendaries {
+            XCTAssertEqual(unit.evolutionBranches.count, 2, "\(unit.id) is legendary but doesn't have 2 branches")
         }
     }
 

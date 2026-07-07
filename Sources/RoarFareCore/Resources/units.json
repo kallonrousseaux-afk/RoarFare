@@ -14,7 +14,20 @@
       "knockbackResistant": false,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "swift_scavenger",
+        "name": "Swift Scavenger",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 0,
+          "attackIntervalSeconds": -0.1,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Faster attacks."
+      }
+    ]
   },
   {
     "id": "velociraptor",
@@ -31,7 +44,20 @@
       "knockbackResistant": false,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "pack_hunter",
+        "name": "Pack Hunter",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 8,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Sharper coordinated strikes, more damage."
+      }
+    ]
   },
   {
     "id": "deinonychus",
@@ -108,7 +134,7 @@
         "abilityDescription": "Loses personal damage; grants an attack-speed aura to units within 2 lane segments.",
         "ability": {
           "type": "attackSpeedAura",
-          "range": 2.0,
+          "range": 10.0,
           "attackIntervalMultiplier": 0.7
         }
       },
@@ -141,7 +167,20 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "bulwark_horn",
+        "name": "Bulwark Horn",
+        "statModifiers": {
+          "maxHP": 80,
+          "attackDamage": 0,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": true
+        },
+        "abilityDescription": "Horn charge knocks enemies back."
+      }
+    ]
   },
   {
     "id": "stegosaurus",
@@ -158,7 +197,20 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "thagomizer_guardian",
+        "name": "Thagomizer Guardian",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 15,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": true
+        },
+        "abilityDescription": "Tail-spike swing knocks enemies back."
+      }
+    ]
   },
   {
     "id": "ankylosaurus",
@@ -175,7 +227,20 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "club_tail_breaker",
+        "name": "Club-Tail Breaker",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 20,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": true
+        },
+        "abilityDescription": "Heavier tail-club hits knock enemies back."
+      }
+    ]
   },
   {
     "id": "tyrannosaurus_rex",
@@ -192,7 +257,32 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "tyrant_king",
+        "name": "Tyrant King",
+        "statModifiers": {
+          "maxHP": 200,
+          "attackDamage": 40,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Pure apex-predator scaling: more HP, more damage."
+      },
+      {
+        "id": "bone_crusher",
+        "name": "Bone-Crusher",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 80,
+          "attackIntervalSeconds": 0.3,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": true
+        },
+        "abilityDescription": "Slower but devastating bite that knocks enemies back."
+      }
+    ]
   },
   {
     "id": "coelophysis",
@@ -209,7 +299,20 @@
       "knockbackResistant": false,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "swarm_runner",
+        "name": "Swarm Runner",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 0,
+          "attackIntervalSeconds": -0.1,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Faster attacks."
+      }
+    ]
   },
   {
     "id": "plateosaurus",
@@ -226,7 +329,20 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "titan_browser",
+        "name": "Titan Browser",
+        "statModifiers": {
+          "maxHP": 100,
+          "attackDamage": 0,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Bulkier frontline tank."
+      }
+    ]
   },
   {
     "id": "dilophosaurus",
@@ -243,7 +359,20 @@
       "knockbackResistant": false,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "venom_spitter",
+        "name": "Venom Spitter",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 10,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Venomous bite deals extra damage."
+      }
+    ]
   },
   {
     "id": "allosaurus",
@@ -260,7 +389,20 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "apex_stalker",
+        "name": "Apex Stalker",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 25,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Sharper hunting instincts, more damage."
+      }
+    ]
   },
   {
     "id": "brachiosaurus",
@@ -277,7 +419,37 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "sky_reacher",
+        "name": "Sky Reacher",
+        "statModifiers": {
+          "maxHP": 400,
+          "attackDamage": 0,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Even more HP -- a true walking fortress."
+      },
+      {
+        "id": "canopy_titan",
+        "name": "Canopy Titan",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": -50,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Loses personal damage; grants an attack-speed aura to nearby allies.",
+        "ability": {
+          "type": "attackSpeedAura",
+          "range": 12.0,
+          "attackIntervalMultiplier": 0.8
+        }
+      }
+    ]
   },
   {
     "id": "utahraptor",
@@ -294,7 +466,20 @@
       "knockbackResistant": false,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "slash_hunter",
+        "name": "Slash Hunter",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 12,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Bigger sickle-claw damage."
+      }
+    ]
   },
   {
     "id": "styracosaurus",
@@ -311,7 +496,20 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "spike_crown",
+        "name": "Spike Crown",
+        "statModifiers": {
+          "maxHP": 60,
+          "attackDamage": 0,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": true,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Reinforced frill, even harder to knock back."
+      }
+    ]
   },
   {
     "id": "pentaceratops",
@@ -328,7 +526,20 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "five_horn_vanguard",
+        "name": "Five-Horn Vanguard",
+        "statModifiers": {
+          "maxHP": 80,
+          "attackDamage": 10,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "All five horns reinforced -- tougher and stronger."
+      }
+    ]
   },
   {
     "id": "pachycephalosaurus",
@@ -345,7 +556,20 @@
       "knockbackResistant": false,
       "dealsKnockback": true
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "dome_rammer",
+        "name": "Dome Rammer",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 14,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": true
+        },
+        "abilityDescription": "Harder headbutt, still knocks enemies back."
+      }
+    ]
   },
   {
     "id": "spinosaurus",
@@ -362,6 +586,95 @@
       "knockbackResistant": true,
       "dealsKnockback": false
     },
-    "evolutionBranches": []
+    "evolutionBranches": [
+      {
+        "id": "river_tyrant",
+        "name": "River Tyrant",
+        "statModifiers": {
+          "maxHP": 300,
+          "attackDamage": 40,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Pure apex scaling: more HP, more damage."
+      },
+      {
+        "id": "sail_predator",
+        "name": "Sail Predator",
+        "statModifiers": {
+          "maxHP": -50,
+          "attackDamage": 0,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "First attack after deployment deals bonus damage, then reverts to normal.",
+        "ability": {
+          "type": "firstHitBonus",
+          "damageMultiplier": 2.5
+        }
+      }
+    ]
+  },
+  {
+    "id": "iguanodon",
+    "name": "Iguanodon",
+    "era": "cretaceous",
+    "sizeClass": "medium",
+    "rarity": "common",
+    "deployCost": 470,
+    "baseStats": {
+      "maxHP": 340,
+      "attackDamage": 22,
+      "attackIntervalSeconds": 1.2,
+      "rangeUnits": 1.0,
+      "knockbackResistant": false,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": [
+      {
+        "id": "thumb_spike_defender",
+        "name": "Thumb-Spike Defender",
+        "statModifiers": {
+          "maxHP": 50,
+          "attackDamage": 0,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": true,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "Braces with its thumb spike, harder to knock back."
+      }
+    ]
+  },
+  {
+    "id": "ceratosaurus",
+    "name": "Ceratosaurus",
+    "era": "jurassic",
+    "sizeClass": "medium",
+    "rarity": "rare",
+    "deployCost": 530,
+    "baseStats": {
+      "maxHP": 380,
+      "attackDamage": 38,
+      "attackIntervalSeconds": 1.2,
+      "rangeUnits": 1.0,
+      "knockbackResistant": false,
+      "dealsKnockback": false
+    },
+    "evolutionBranches": [
+      {
+        "id": "horn_snout_hunter",
+        "name": "Horn-Snout Hunter",
+        "statModifiers": {
+          "maxHP": 0,
+          "attackDamage": 14,
+          "attackIntervalSeconds": 0,
+          "grantsKnockbackResistance": false,
+          "grantsKnockbackAttack": false
+        },
+        "abilityDescription": "More aggressive hunting stance, more damage."
+      }
+    ]
   }
 ]
