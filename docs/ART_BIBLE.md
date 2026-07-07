@@ -17,6 +17,8 @@ This is a recommendation, not a lock — if the project later wants a "premium" 
 
 **Tone descriptors:** chunky, round, big-eyed, high-contrast, toylike, slightly bouncy in motion. Think "dinosaur toy chest" more than "nature documentary."
 
+**Cute/cool spectrum:** not every unit should land in the same "adorable" register — a 100-unit roster where everything is equally saccharine gets flat and forgettable fast. Deliberately spread units across a cute-to-cool spectrum (a bouncy, sparkly-eyed Compsognathus next to a sharp-eyed, bold-stanced Giganotosaurus) the same way Battle Cats varies "cute," "badass," and "goofy" across its own roster. Size class and rarity are hints, not rules — a Tiny unit can still read as "cool" via posture and eye shape rather than sheer scale.
+
 ---
 
 ## 2. Silhouette & Proportion Rules
@@ -26,6 +28,7 @@ These rules exist so a unit is identifiable by silhouette alone at battle scale 
 - **Head-to-body ratio:** oversized head (roughly 1:2.5 to 1:3 head-to-body, vs. realistic ~1:6-1:8) on all ground units. This is the single biggest lever for "cute" and must be applied uniformly or units will feel like they're from different games.
 - **Limbs:** stubby, rounded, no visible claws-as-weapons on herbivores; predators get slightly more angular (but still rounded-tip) limbs to read as threat without going realistic-sharp.
 - **Eyes:** large, forward-facing dot or oval eyes on all units regardless of real-world eye placement (yes, even Triceratops) — this is a deliberate design law, not an error, because forward-facing eyes read as "character" and side-facing eyes read as "background animal."
+- **Faces omit a drawn mouth line, but are not otherwise blank:** the eyes carry all the expression, so no mouth is drawn — but the snout/beak/jaw must still have real structure (shading, a defined nose, brow, cheek volume). A face that's just a flat-colored circle with two eyes and nothing else reads as broken/unfinished, not stylized — that's a bug, not the style. "No mouth" means exactly that one feature is omitted, not a license to flatten the whole face.
 - **Size-class silhouette must match gameplay size class** (see Design Doc §4): a Tiny unit's silhouette should look small/quick even in a lineup with no scale reference; an Apex unit's silhouette must be immediately the widest/tallest thing on screen. Never let a gameplay-Large unit have a visually-slighter silhouette than a gameplay-Medium unit — the player uses silhouette to eyeball BU cost mid-battle.
 - **Read-at-10px test:** every unit thumbnail must be distinguishable from its neighbors in the same Era when scaled down to a 32x32 icon. If two units are only distinguishable by a color swap, differentiate the silhouette further.
 
