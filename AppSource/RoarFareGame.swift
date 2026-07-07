@@ -5,8 +5,19 @@ import Combine
 
 // MARK: - Core types (mirrors RoarFareCore, inlined so this is a single drop-in file)
 
-enum Era {
+enum Era: Hashable {
     case triassic, jurassic, cretaceous, iceAge, marine, sky
+
+    var displayName: String {
+        switch self {
+        case .triassic: return "Triassic"
+        case .jurassic: return "Jurassic"
+        case .cretaceous: return "Cretaceous"
+        case .iceAge: return "Ice Age"
+        case .marine: return "Marine"
+        case .sky: return "Sky"
+        }
+    }
 }
 
 enum SizeClass {
@@ -1062,24 +1073,31 @@ struct DeployOption: Identifiable {
     let unitIndex: Int
     let branchID: String?
     let cost: Int
+    let era: Era
 }
 
 let deployOptions: [DeployOption] = {
     var options: [DeployOption] = []
     for (index, unit) in bundledUnits.enumerated() {
-        options.append(DeployOption(id: unit.id, label: unit.name, unitIndex: index, branchID: nil, cost: unit.deployCost))
+        options.append(DeployOption(id: unit.id, label: unit.name, unitIndex: index, branchID: nil, cost: unit.deployCost, era: unit.era))
         for branch in unit.evolutionBranches {
             options.append(DeployOption(
                 id: "\(unit.id)_\(branch.id)",
                 label: "\(unit.name) (\(branch.name))",
                 unitIndex: index,
                 branchID: branch.id,
-                cost: unit.deployCost
+                cost: unit.deployCost,
+                era: unit.era
             ))
         }
     }
     return options
 }()
+
+/// The only Eras with any bundled units right now (see `GAME_DESIGN.md` §11 MVP scope) --
+/// iceAge/marine/sky are real `Era` cases but have no roster content yet, so they're
+/// deliberately left out of the deploy-tab list rather than showing an always-empty tab.
+let populatedEras: [Era] = [.triassic, .jurassic, .cretaceous]
 
 // MARK: - SpriteKit battle scene
 
@@ -1298,6 +1316,16 @@ struct RoarFareContentView: View {
         return scene
     }()
 
+    // Era tab selection exists because deployOptions crossed 200 entries once the roster
+    // expanded to 100 units -- a single flat scrolling list of every unit and every branch
+    // stopped being usable mid-battle, so it's now split per-Era the same way the game's
+    // core Era identity signal already works everywhere else (see ART_BIBLE.md §3.1).
+    @State private var selectedEra: Era = .triassic
+
+    private var visibleOptions: [DeployOption] {
+        deployOptions.filter { $0.era == selectedEra }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             SpriteView(scene: scene)
@@ -1313,9 +1341,18 @@ struct RoarFareContentView: View {
                 .padding(.top, 8)
             }
 
+            Picker("Era", selection: $selectedEra) {
+                ForEach(populatedEras, id: \.self) { era in
+                    Text(era.displayName).tag(era)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.top, 8)
+
             ScrollView(.horizontal) {
                 HStack {
-                    ForEach(deployOptions) { option in
+                    ForEach(visibleOptions) { option in
                         let affordable = option.cost <= scene.amber
                         Button(option.label) {
                             scene.deployPlayerUnit(unitIndex: option.unitIndex, branchID: option.branchID)
