@@ -542,17 +542,16 @@ final class BattleScene: SKScene, ObservableObject {
     // frame at 60fps just to grey out buttons would be wasteful and can visibly stutter SwiftUI.
     private var amberAccumulator: Double = 0
     @Published private(set) var amber: Int = 0
-    // Was 20/sec, then 12/sec -- first real playtest found both too fast (cheap units were
-    // always instantly affordable again, so the BU cap was the only real constraint and Amber
-    // never mattered). Cut further so deploy timing/cost actually matters alongside the BU cap.
-    private let amberPerSecond: Double = 8
+    // Was 20/sec, dropped to 12/sec after the first playtest (20 was too fast), then dropped
+    // further to 8/sec -- that turned out too slow, so back to 12/sec.
+    private let amberPerSecond: Double = 12
 
     // The enemy has its own economy now, gated the same way the player's is -- previously this
     // spawned a uniformly random unit (including the 1800-cost T. Rex) every 2 seconds with no
     // cost check at all, which made the game unwinnable regardless of player skill. Now it can
     // only deploy what it can actually afford, accruing slightly slower than the player.
     private var enemyAmberAccumulator: Double = 0
-    private let enemyAmberPerSecond: Double = 6.5
+    private let enemyAmberPerSecond: Double = 10
     private var enemySpawnCheckTimer: Double = 0
     private let enemySpawnCheckInterval: Double = 0.5
 
