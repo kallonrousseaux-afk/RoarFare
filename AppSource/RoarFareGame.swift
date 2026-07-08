@@ -185,10 +185,15 @@ enum EraCounters {
 }
 
 final class Lane {
-    static let frontlineBUCap = 10
+    static let defaultFrontlineBUCap = 10
     static let tinyUnitHeadcountCap = 6
     static let knockbackDistance = 3.0
     static let frontlineEngagementRange = 2.0
+
+    // A `var`, not a fixed constant -- `BattleScene` raises this during the double-Amber final
+    // stretch (see `isInDoubleAmberPhase`) so bigger frontlines are possible in the climax, not
+    // just faster income.
+    var frontlineBUCap = Lane.defaultFrontlineBUCap
 
     let length: Double
     private(set) var playerUnits: [DeployedUnit] = []
@@ -207,7 +212,7 @@ final class Lane {
     }
 
     func remainingBU(for side: Side) -> Int {
-        max(0, Self.frontlineBUCap - currentBU(for: side))
+        max(0, frontlineBUCap - currentBU(for: side))
     }
 
     private func tinyUnitCount(for side: Side) -> Int {
@@ -229,7 +234,7 @@ final class Lane {
 
     @discardableResult
     func deploy(_ definition: UnitDefinition, activeBranchID: String? = nil, to side: Side) -> Bool {
-        guard currentBU(for: side) + definition.sizeClass.blockingUnits <= Self.frontlineBUCap else {
+        guard currentBU(for: side) + definition.sizeClass.blockingUnits <= frontlineBUCap else {
             return false
         }
         if definition.sizeClass == .tiny, tinyUnitCount(for: side) >= Self.tinyUnitHeadcountCap {
@@ -605,6 +610,9 @@ final class BattleScene: SKScene, ObservableObject {
     private let matchDurationSeconds: Double = 480
     private let doubleAmberStartSeconds: Double = 300
     private var isInDoubleAmberPhase: Bool { matchElapsedTime >= doubleAmberStartSeconds }
+    // Raised from the default 10 during the double-Amber final stretch, so faster income also
+    // comes with room to actually field more/bigger units instead of just refilling faster.
+    private static let doubleAmberPhaseFrontlineBUCap = 16
 
     // Amber is tracked as a whole number (it was only ever displayed as Int anyway) and
     // @Published is only updated when that whole number actually changes -- publishing every
@@ -737,6 +745,7 @@ final class BattleScene: SKScene, ObservableObject {
         matchElapsedTime += deltaTime
 
         let amberMultiplier = isInDoubleAmberPhase ? 2.0 : 1.0
+        lane.frontlineBUCap = isInDoubleAmberPhase ? Self.doubleAmberPhaseFrontlineBUCap : Lane.defaultFrontlineBUCap
         amberAccumulator += amberPerSecond * amberMultiplier * deltaTime
         let newAmber = Int(amberAccumulator)
         if newAmber != amber {
