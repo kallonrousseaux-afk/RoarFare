@@ -635,6 +635,576 @@ let bundledUnits: [UnitDefinition] = [
         evolutionBranches: [
             EvolutionBranch(id: "sky_diver", name: "Sky Diver", statModifiers: StatModifiers(attackDamage: 10), abilityDescription: "Dives from above for a harder strike.")
         ]
+    ),
+    // MARK: Second roster expansion -- 80 more units to bring the character-art roster's
+    // "100 characters" concept fully into the playable data model. These render with the same
+    // procedural chibi-circle visuals as every other unit (see BattleScene.makeVisual), so
+    // there's no longer an art-completeness gate on which designed units are playable.
+    UnitDefinition(
+        id: "microraptor", name: "Microraptor", era: .cretaceous, sizeClass: .tiny, rarity: .common,
+        deployCost: 60, baseStats: UnitStats(maxHP: 38, attackDamage: 8, attackIntervalSeconds: 0.55, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "four_wing_glider", name: "Four-Wing Glider", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Glides between strikes for faster attacks.")
+        ]
+    ),
+    UnitDefinition(
+        id: "caudipteryx", name: "Caudipteryx", era: .cretaceous, sizeClass: .tiny, rarity: .common,
+        deployCost: 55, baseStats: UnitStats(maxHP: 32, attackDamage: 6, attackIntervalSeconds: 0.6, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "plume_dancer", name: "Plume Dancer", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Quick darting strikes.")
+        ]
+    ),
+    UnitDefinition(
+        id: "archaeopteryx", name: "Archaeopteryx", era: .jurassic, sizeClass: .tiny, rarity: .common,
+        deployCost: 65, baseStats: UnitStats(maxHP: 34, attackDamage: 7, attackIntervalSeconds: 0.55, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "sky_glider", name: "Sky Glider", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Light frame darts between attacks.")
+        ]
+    ),
+    UnitDefinition(
+        id: "eoraptor", name: "Eoraptor", era: .triassic, sizeClass: .tiny, rarity: .common,
+        deployCost: 50, baseStats: UnitStats(maxHP: 30, attackDamage: 6, attackIntervalSeconds: 0.55, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "first_hunter", name: "First Hunter", statModifiers: StatModifiers(attackDamage: 4), abilityDescription: "One of the earliest hunters, sharper bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "hypsilophodon", name: "Hypsilophodon", era: .cretaceous, sizeClass: .tiny, rarity: .common,
+        deployCost: 55, baseStats: UnitStats(maxHP: 36, attackDamage: 5, attackIntervalSeconds: 0.6, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "quick_grazer", name: "Quick Grazer", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Fast nimble strikes.")
+        ]
+    ),
+    UnitDefinition(
+        id: "leaellynasaura", name: "Leaellynasaura", era: .cretaceous, sizeClass: .tiny, rarity: .common,
+        deployCost: 55, baseStats: UnitStats(maxHP: 40, attackDamage: 5, attackIntervalSeconds: 0.6, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "polar_sprinter", name: "Polar Sprinter", statModifiers: StatModifiers(maxHP: 10), abilityDescription: "Built for cold endurance, tougher.")
+        ]
+    ),
+    UnitDefinition(
+        id: "psittacosaurus", name: "Psittacosaurus", era: .cretaceous, sizeClass: .tiny, rarity: .common,
+        deployCost: 60, baseStats: UnitStats(maxHP: 42, attackDamage: 6, attackIntervalSeconds: 0.6, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "quill_tail", name: "Quill-Tail", statModifiers: StatModifiers(grantsKnockbackResistance: true), abilityDescription: "Bristled tail braces against hits.")
+        ]
+    ),
+    UnitDefinition(
+        id: "scutellosaurus", name: "Scutellosaurus", era: .jurassic, sizeClass: .tiny, rarity: .common,
+        deployCost: 60, baseStats: UnitStats(maxHP: 44, attackDamage: 5, attackIntervalSeconds: 0.6, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "scale_guard", name: "Scale Guard", statModifiers: StatModifiers(maxHP: 15), abilityDescription: "Extra scutes add toughness.")
+        ]
+    ),
+    UnitDefinition(
+        id: "dilong", name: "Dilong", era: .cretaceous, sizeClass: .tiny, rarity: .common,
+        deployCost: 65, baseStats: UnitStats(maxHP: 40, attackDamage: 8, attackIntervalSeconds: 0.55, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "downy_stalker", name: "Downy Stalker", statModifiers: StatModifiers(attackDamage: 4), abilityDescription: "Feathered ambusher, sharper bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "thescelosaurus", name: "Thescelosaurus", era: .cretaceous, sizeClass: .tiny, rarity: .common,
+        deployCost: 58, baseStats: UnitStats(maxHP: 40, attackDamage: 6, attackIntervalSeconds: 0.6, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "steady_heart", name: "Steady Heart", statModifiers: StatModifiers(maxHP: 12), abilityDescription: "Tougher stamina, more HP.")
+        ]
+    ),
+    UnitDefinition(
+        id: "oviraptor", name: "Oviraptor", era: .cretaceous, sizeClass: .small, rarity: .rare,
+        deployCost: 310, baseStats: UnitStats(maxHP: 122, attackDamage: 28, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "egg_guardian", name: "Egg Guardian", statModifiers: StatModifiers(maxHP: 20), abilityDescription: "Protective instincts, more HP.")
+        ]
+    ),
+    UnitDefinition(
+        id: "protoceratops", name: "Protoceratops", era: .cretaceous, sizeClass: .small, rarity: .rare,
+        deployCost: 300, baseStats: UnitStats(maxHP: 132, attackDamage: 24, attackIntervalSeconds: 0.9, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "nest_defender", name: "Nest Defender", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Headbutts intruders back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "beipiaosaurus", name: "Beipiaosaurus", era: .cretaceous, sizeClass: .small, rarity: .rare,
+        deployCost: 300, baseStats: UnitStats(maxHP: 116, attackDamage: 22, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "bristle_coat", name: "Bristle Coat", statModifiers: StatModifiers(maxHP: 15), abilityDescription: "Shaggy feathers add padding.")
+        ]
+    ),
+    UnitDefinition(
+        id: "falcarius", name: "Falcarius", era: .cretaceous, sizeClass: .small, rarity: .rare,
+        deployCost: 300, baseStats: UnitStats(maxHP: 118, attackDamage: 24, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "early_scythe", name: "Early Scythe", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "Proto-claws, sharper strikes.")
+        ]
+    ),
+    UnitDefinition(
+        id: "guanlong", name: "Guanlong", era: .jurassic, sizeClass: .small, rarity: .rare,
+        deployCost: 310, baseStats: UnitStats(maxHP: 126, attackDamage: 30, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "crest_caller", name: "Crest Caller", statModifiers: StatModifiers(attackDamage: 6), abilityDescription: "Bold display crest, bolder bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "eotyrannus", name: "Eotyrannus", era: .cretaceous, sizeClass: .small, rarity: .rare,
+        deployCost: 310, baseStats: UnitStats(maxHP: 128, attackDamage: 30, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "proto_tyrant", name: "Proto Tyrant", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "Early tyrannosaur bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "thecodontosaurus", name: "Thecodontosaurus", era: .triassic, sizeClass: .small, rarity: .rare,
+        deployCost: 300, baseStats: UnitStats(maxHP: 120, attackDamage: 26, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "ancestors_bite", name: "Ancestor's Bite", statModifiers: StatModifiers(attackDamage: 6), abilityDescription: "One of the earliest dinosaurs, sharper teeth.")
+        ]
+    ),
+    UnitDefinition(
+        id: "scelidosaurus", name: "Scelidosaurus", era: .jurassic, sizeClass: .small, rarity: .rare,
+        deployCost: 320, baseStats: UnitStats(maxHP: 142, attackDamage: 24, attackIntervalSeconds: 0.95, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "early_armor", name: "Early Armor", statModifiers: StatModifiers(maxHP: 30), abilityDescription: "Thick early armor plating.")
+        ]
+    ),
+    UnitDefinition(
+        id: "minmi", name: "Minmi", era: .cretaceous, sizeClass: .small, rarity: .rare,
+        deployCost: 320, baseStats: UnitStats(maxHP: 136, attackDamage: 22, attackIntervalSeconds: 0.95, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "belly_plate", name: "Belly Plate", statModifiers: StatModifiers(maxHP: 20), abilityDescription: "Underside armor, extra HP.")
+        ]
+    ),
+    UnitDefinition(
+        id: "masiakasaurus", name: "Masiakasaurus", era: .cretaceous, sizeClass: .small, rarity: .rare,
+        deployCost: 310, baseStats: UnitStats(maxHP: 120, attackDamage: 30, attackIntervalSeconds: 0.85, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "needle_jaw", name: "Needle Jaw", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "Forward-jutting teeth, sharper bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "herrerasaurus", name: "Herrerasaurus", era: .triassic, sizeClass: .small, rarity: .rare,
+        deployCost: 320, baseStats: UnitStats(maxHP: 135, attackDamage: 32, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "ancient_hunter", name: "Ancient Hunter", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "One of the first big predators, harder bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "anzu", name: "Anzu", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 460, baseStats: UnitStats(maxHP: 340, attackDamage: 26, attackIntervalSeconds: 1.1, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "hell_chicken", name: "Hell Chicken", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Fast aggressive strikes.")
+        ]
+    ),
+    UnitDefinition(
+        id: "ornithomimus", name: "Ornithomimus", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 420, baseStats: UnitStats(maxHP: 310, attackDamage: 20, attackIntervalSeconds: 1.1, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "ostrich_sprint", name: "Ostrich Sprint", statModifiers: StatModifiers(maxHP: 20), abilityDescription: "Built for speed and stamina.")
+        ]
+    ),
+    UnitDefinition(
+        id: "struthiomimus", name: "Struthiomimus", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 420, baseStats: UnitStats(maxHP: 320, attackDamage: 20, attackIntervalSeconds: 1.1, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "swift_strider", name: "Swift Strider", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Long legs, faster strikes.")
+        ]
+    ),
+    UnitDefinition(
+        id: "gallimimus", name: "Gallimimus", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 430, baseStats: UnitStats(maxHP: 330, attackDamage: 22, attackIntervalSeconds: 1.1, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "herd_runner", name: "Herd Runner", statModifiers: StatModifiers(maxHP: 30), abilityDescription: "Runs in herds, tougher.")
+        ]
+    ),
+    UnitDefinition(
+        id: "carnotaurus", name: "Carnotaurus", era: .cretaceous, sizeClass: .medium, rarity: .epic,
+        deployCost: 560, baseStats: UnitStats(maxHP: 460, attackDamage: 42, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "devil_horn_charge", name: "Devil Horn Charge", statModifiers: StatModifiers(attackDamage: 10, grantsKnockbackAttack: true), abilityDescription: "Brow horns deliver a knockback charge.")
+        ]
+    ),
+    UnitDefinition(
+        id: "chasmosaurus", name: "Chasmosaurus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 500, baseStats: UnitStats(maxHP: 420, attackDamage: 32, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "great_frill", name: "Great Frill", statModifiers: StatModifiers(maxHP: 60), abilityDescription: "Enormous frill, tougher defense.")
+        ]
+    ),
+    UnitDefinition(
+        id: "einiosaurus", name: "Einiosaurus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 500, baseStats: UnitStats(maxHP: 400, attackDamage: 34, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "hook_horn", name: "Hook Horn", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Forward-curled horn knocks enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "kosmoceratops", name: "Kosmoceratops", era: .cretaceous, sizeClass: .medium, rarity: .epic,
+        deployCost: 590, baseStats: UnitStats(maxHP: 480, attackDamage: 36, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "ornate_crown", name: "Ornate Crown", statModifiers: StatModifiers(maxHP: 70), abilityDescription: "Elaborate horn crown, extra tough.")
+        ]
+    ),
+    UnitDefinition(
+        id: "diabloceratops", name: "Diabloceratops", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 510, baseStats: UnitStats(maxHP: 420, attackDamage: 36, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "devils_frill", name: "Devil's Frill", statModifiers: StatModifiers(attackDamage: 12), abilityDescription: "Sharp frill spikes, harder hits.")
+        ]
+    ),
+    UnitDefinition(
+        id: "zuniceratops", name: "Zuniceratops", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 460, baseStats: UnitStats(maxHP: 360, attackDamage: 28, attackIntervalSeconds: 1.2, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "first_horn", name: "First Horn", statModifiers: StatModifiers(maxHP: 40), abilityDescription: "Early horned dinosaur, sturdy.")
+        ]
+    ),
+    UnitDefinition(
+        id: "nasutoceratops", name: "Nasutoceratops", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 500, baseStats: UnitStats(maxHP: 410, attackDamage: 32, attackIntervalSeconds: 1.2, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "big_nose_charge", name: "Big Nose Charge", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Powerful charge knocks enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "regaliceratops", name: "Regaliceratops", era: .cretaceous, sizeClass: .medium, rarity: .epic,
+        deployCost: 600, baseStats: UnitStats(maxHP: 470, attackDamage: 34, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "royal_crown", name: "Royal Crown", statModifiers: StatModifiers(maxHP: 80), abilityDescription: "Crown-shaped frill, extra tough.")
+        ]
+    ),
+    UnitDefinition(
+        id: "pachyrhinosaurus", name: "Pachyrhinosaurus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 510, baseStats: UnitStats(maxHP: 430, attackDamage: 30, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "boss_nose_ram", name: "Boss Nose Ram", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Bony nose boss rams enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "sauropelta", name: "Sauropelta", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 520, baseStats: UnitStats(maxHP: 450, attackDamage: 26, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "spiked_hide", name: "Spiked Hide", statModifiers: StatModifiers(maxHP: 60), abilityDescription: "Rows of spikes add toughness.")
+        ]
+    ),
+    UnitDefinition(
+        id: "nodosaurus", name: "Nodosaurus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 500, baseStats: UnitStats(maxHP: 440, attackDamage: 24, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "plate_wall", name: "Plate Wall", statModifiers: StatModifiers(maxHP: 50), abilityDescription: "Thick dermal plates add toughness.")
+        ]
+    ),
+    UnitDefinition(
+        id: "gastonia", name: "Gastonia", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 510, baseStats: UnitStats(maxHP: 430, attackDamage: 28, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "shoulder_spikes", name: "Shoulder Spikes", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Shoulder spikes knock enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "polacanthus", name: "Polacanthus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 500, baseStats: UnitStats(maxHP: 420, attackDamage: 26, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "pelvic_shield", name: "Pelvic Shield", statModifiers: StatModifiers(maxHP: 50), abilityDescription: "Fused pelvic armor, extra tough.")
+        ]
+    ),
+    UnitDefinition(
+        id: "huayangosaurus", name: "Huayangosaurus", era: .jurassic, sizeClass: .medium, rarity: .common,
+        deployCost: 460, baseStats: UnitStats(maxHP: 360, attackDamage: 30, attackIntervalSeconds: 1.2, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "early_plate", name: "Early Plate", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "Early stegosaur spikes, sharper hits.")
+        ]
+    ),
+    UnitDefinition(
+        id: "tuojiangosaurus", name: "Tuojiangosaurus", era: .jurassic, sizeClass: .medium, rarity: .rare,
+        deployCost: 520, baseStats: UnitStats(maxHP: 440, attackDamage: 34, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "twin_spike_tail", name: "Twin Spike Tail", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Tail spikes knock enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "kentrosaurus", name: "Kentrosaurus", era: .jurassic, sizeClass: .medium, rarity: .rare,
+        deployCost: 510, baseStats: UnitStats(maxHP: 420, attackDamage: 32, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "shoulder_spike_guard", name: "Shoulder Spike Guard", statModifiers: StatModifiers(maxHP: 50), abilityDescription: "Shoulder spikes add defense.")
+        ]
+    ),
+    UnitDefinition(
+        id: "riojasaurus", name: "Riojasaurus", era: .triassic, sizeClass: .medium, rarity: .common,
+        deployCost: 450, baseStats: UnitStats(maxHP: 380, attackDamage: 26, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "early_giant", name: "Early Giant", statModifiers: StatModifiers(maxHP: 50), abilityDescription: "One of the first giants, tougher.")
+        ]
+    ),
+    UnitDefinition(
+        id: "massospondylus", name: "Massospondylus", era: .triassic, sizeClass: .medium, rarity: .common,
+        deployCost: 440, baseStats: UnitStats(maxHP: 360, attackDamage: 24, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "long_neck_browser", name: "Long Neck Browser", statModifiers: StatModifiers(maxHP: 40), abilityDescription: "Reaches higher, sturdier build.")
+        ]
+    ),
+    UnitDefinition(
+        id: "lufengosaurus", name: "Lufengosaurus", era: .triassic, sizeClass: .medium, rarity: .common,
+        deployCost: 450, baseStats: UnitStats(maxHP: 370, attackDamage: 26, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "dawn_grazer", name: "Dawn Grazer", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "One of the earliest big herbivores, harder bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "yangchuanosaurus", name: "Yangchuanosaurus", era: .jurassic, sizeClass: .medium, rarity: .rare,
+        deployCost: 540, baseStats: UnitStats(maxHP: 420, attackDamage: 40, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "eastern_predator", name: "Eastern Predator", statModifiers: StatModifiers(attackDamage: 12), abilityDescription: "Asia's apex Jurassic hunter, harder bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "baryonyx", name: "Baryonyx", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 540, baseStats: UnitStats(maxHP: 430, attackDamage: 36, attackIntervalSeconds: 1.1, rangeUnits: 1.2),
+        evolutionBranches: [
+            EvolutionBranch(id: "fish_hook_claw", name: "Fish Hook Claw", statModifiers: StatModifiers(attackDamage: 10), abilityDescription: "Massive thumb claw, sharper strikes.")
+        ]
+    ),
+    UnitDefinition(
+        id: "skorpiovenator", name: "Skorpiovenator", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 500, baseStats: UnitStats(maxHP: 400, attackDamage: 36, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "scorpion_strike", name: "Scorpion Strike", statModifiers: StatModifiers(attackDamage: 10), abilityDescription: "Bony-faced hunter, harder bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "aucasaurus", name: "Aucasaurus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 490, baseStats: UnitStats(maxHP: 390, attackDamage: 34, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "pack_stalker", name: "Pack Stalker", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "Coordinated hunting, harder bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "nigersaurus", name: "Nigersaurus", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 470, baseStats: UnitStats(maxHP: 370, attackDamage: 24, attackIntervalSeconds: 1.2, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "wide_grazer", name: "Wide Grazer", statModifiers: StatModifiers(maxHP: 30), abilityDescription: "Wide mouth, sturdier grazer.")
+        ]
+    ),
+    UnitDefinition(
+        id: "europasaurus", name: "Europasaurus", era: .jurassic, sizeClass: .medium, rarity: .common,
+        deployCost: 460, baseStats: UnitStats(maxHP: 360, attackDamage: 24, attackIntervalSeconds: 1.2, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "island_dwarf", name: "Island Dwarf", statModifiers: StatModifiers(maxHP: 40), abilityDescription: "Compact island sauropod, surprisingly tough.")
+        ]
+    ),
+    UnitDefinition(
+        id: "edmontosaurus", name: "Edmontosaurus", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 450, baseStats: UnitStats(maxHP: 340, attackDamage: 24, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "duck_bill_herd", name: "Duck-Bill Herd", statModifiers: StatModifiers(maxHP: 40), abilityDescription: "Herd instincts, tougher.")
+        ]
+    ),
+    UnitDefinition(
+        id: "corythosaurus", name: "Corythosaurus", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 460, baseStats: UnitStats(maxHP: 350, attackDamage: 24, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "helmet_crest_call", name: "Helmet Crest Call", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Resonant crest call, faster strikes.")
+        ]
+    ),
+    UnitDefinition(
+        id: "lambeosaurus", name: "Lambeosaurus", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 460, baseStats: UnitStats(maxHP: 350, attackDamage: 24, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "hatchet_crest", name: "Hatchet Crest", statModifiers: StatModifiers(maxHP: 30), abilityDescription: "Distinct crest shape, sturdier build.")
+        ]
+    ),
+    UnitDefinition(
+        id: "saurolophus", name: "Saurolophus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
+        deployCost: 480, baseStats: UnitStats(maxHP: 380, attackDamage: 28, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "spike_crest_charge", name: "Spike Crest Charge", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Spike-crested charge knocks enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "camptosaurus", name: "Camptosaurus", era: .jurassic, sizeClass: .medium, rarity: .common,
+        deployCost: 440, baseStats: UnitStats(maxHP: 330, attackDamage: 22, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "grazers_guard", name: "Grazer's Guard", statModifiers: StatModifiers(maxHP: 30), abilityDescription: "Sturdy grazer, extra tough.")
+        ]
+    ),
+    UnitDefinition(
+        id: "tenontosaurus", name: "Tenontosaurus", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 450, baseStats: UnitStats(maxHP: 360, attackDamage: 26, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "thick_tail_whip", name: "Thick Tail Whip", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Heavy tail whip knocks enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "maiasaura", name: "Maiasaura", era: .cretaceous, sizeClass: .medium, rarity: .common,
+        deployCost: 460, baseStats: UnitStats(maxHP: 370, attackDamage: 22, attackIntervalSeconds: 1.2, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "good_mother", name: "Good Mother", statModifiers: StatModifiers(maxHP: 50), abilityDescription: "Nurturing instincts, tougher.")
+        ]
+    ),
+    UnitDefinition(
+        id: "therizinosaurus", name: "Therizinosaurus", era: .cretaceous, sizeClass: .large, rarity: .epic,
+        deployCost: 800, baseStats: UnitStats(maxHP: 760, attackDamage: 50, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "scythe_reach", name: "Scythe Reach", statModifiers: StatModifiers(attackDamage: 10), abilityDescription: "Massive scythe claws, harder hits.")
+        ]
+    ),
+    UnitDefinition(
+        id: "giganotosaurus", name: "Giganotosaurus", era: .cretaceous, sizeClass: .large, rarity: .epic,
+        deployCost: 830, baseStats: UnitStats(maxHP: 800, attackDamage: 68, attackIntervalSeconds: 1.5, rangeUnits: 1.0),
+        evolutionBranches: [
+            EvolutionBranch(id: "southern_titan", name: "Southern Titan", statModifiers: StatModifiers(attackDamage: 20), abilityDescription: "One of the largest predators, devastating bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "miragaia", name: "Miragaia", era: .jurassic, sizeClass: .large, rarity: .rare,
+        deployCost: 760, baseStats: UnitStats(maxHP: 720, attackDamage: 48, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "long_plate_neck", name: "Long Plate Neck", statModifiers: StatModifiers(maxHP: 60), abilityDescription: "Elongated plated neck, tougher.")
+        ]
+    ),
+    UnitDefinition(
+        id: "camarasaurus", name: "Camarasaurus", era: .jurassic, sizeClass: .large, rarity: .rare,
+        deployCost: 750, baseStats: UnitStats(maxHP: 740, attackDamage: 46, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "sturdy_grazer", name: "Sturdy Grazer", statModifiers: StatModifiers(maxHP: 80), abilityDescription: "Robust build, extra tough.")
+        ]
+    ),
+    UnitDefinition(
+        id: "diplodocus", name: "Diplodocus", era: .jurassic, sizeClass: .large, rarity: .rare,
+        deployCost: 760, baseStats: UnitStats(maxHP: 750, attackDamage: 44, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "whip_tail", name: "Whip Tail", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Long tail cracks like a whip.")
+        ]
+    ),
+    UnitDefinition(
+        id: "apatosaurus", name: "Apatosaurus", era: .jurassic, sizeClass: .large, rarity: .epic,
+        deployCost: 800, baseStats: UnitStats(maxHP: 800, attackDamage: 52, attackIntervalSeconds: 1.6, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "thunder_stomp", name: "Thunder Stomp", statModifiers: StatModifiers(attackDamage: 10, grantsKnockbackAttack: true), abilityDescription: "Ground-shaking stomp knocks enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "barosaurus", name: "Barosaurus", era: .jurassic, sizeClass: .large, rarity: .rare,
+        deployCost: 770, baseStats: UnitStats(maxHP: 760, attackDamage: 46, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "rearing_guard", name: "Rearing Guard", statModifiers: StatModifiers(maxHP: 70), abilityDescription: "Rears up defensively, tougher.")
+        ]
+    ),
+    UnitDefinition(
+        id: "amargasaurus", name: "Amargasaurus", era: .cretaceous, sizeClass: .large, rarity: .epic,
+        deployCost: 790, baseStats: UnitStats(maxHP: 730, attackDamage: 50, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "twin_sail_spine", name: "Twin Sail Spine", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Spined sails lash back at attackers.")
+        ]
+    ),
+    UnitDefinition(
+        id: "yutyrannus", name: "Yutyrannus", era: .cretaceous, sizeClass: .large, rarity: .epic,
+        deployCost: 810, baseStats: UnitStats(maxHP: 780, attackDamage: 55, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "feathered_tyrant", name: "Feathered Tyrant", statModifiers: StatModifiers(attackDamage: 15), abilityDescription: "Largest feathered predator known, harder bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "daspletosaurus", name: "Daspletosaurus", era: .cretaceous, sizeClass: .large, rarity: .epic,
+        deployCost: 820, baseStats: UnitStats(maxHP: 790, attackDamage: 58, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "frightful_bite", name: "Frightful Bite", statModifiers: StatModifiers(attackDamage: 18), abilityDescription: "Bone-crushing bite force.")
+        ]
+    ),
+    UnitDefinition(
+        id: "tarbosaurus", name: "Tarbosaurus", era: .cretaceous, sizeClass: .large, rarity: .epic,
+        deployCost: 830, baseStats: UnitStats(maxHP: 800, attackDamage: 60, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "eastern_tyrant", name: "Eastern Tyrant", statModifiers: StatModifiers(attackDamage: 20), abilityDescription: "Asia's tyrant king, devastating bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "gorgosaurus", name: "Gorgosaurus", era: .cretaceous, sizeClass: .large, rarity: .rare,
+        deployCost: 780, baseStats: UnitStats(maxHP: 750, attackDamage: 52, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "fierce_lizard", name: "Fierce Lizard", statModifiers: StatModifiers(attackDamage: 14), abilityDescription: "Fast fierce hunter, harder bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "albertosaurus", name: "Albertosaurus", era: .cretaceous, sizeClass: .large, rarity: .rare,
+        deployCost: 770, baseStats: UnitStats(maxHP: 740, attackDamage: 50, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "northern_hunter", name: "Northern Hunter", statModifiers: StatModifiers(attackDamage: 12), abilityDescription: "Pack hunter, harder bite.")
+        ]
+    ),
+    UnitDefinition(
+        id: "qianzhousaurus", name: "Qianzhousaurus", era: .cretaceous, sizeClass: .large, rarity: .rare,
+        deployCost: 760, baseStats: UnitStats(maxHP: 720, attackDamage: 48, attackIntervalSeconds: 1.4, rangeUnits: 1.2, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "long_snout_snap", name: "Long Snout Snap", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "'Pinocchio rex' snout, quick sharp bites.")
+        ]
+    ),
+    UnitDefinition(
+        id: "alioramus", name: "Alioramus", era: .cretaceous, sizeClass: .large, rarity: .rare,
+        deployCost: 760, baseStats: UnitStats(maxHP: 720, attackDamage: 46, attackIntervalSeconds: 1.4, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "slender_tyrant", name: "Slender Tyrant", statModifiers: StatModifiers(attackIntervalSeconds: -0.1), abilityDescription: "Slender build, faster strikes.")
+        ]
+    ),
+    UnitDefinition(
+        id: "deinocheirus", name: "Deinocheirus", era: .cretaceous, sizeClass: .large, rarity: .epic,
+        deployCost: 800, baseStats: UnitStats(maxHP: 780, attackDamage: 44, attackIntervalSeconds: 1.5, rangeUnits: 1.2, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "giant_claw_reach", name: "Giant Claw Reach", statModifiers: StatModifiers(attackDamage: 12), abilityDescription: "Enormous claws, harder hits.")
+        ]
+    ),
+    UnitDefinition(
+        id: "shantungosaurus", name: "Shantungosaurus", era: .cretaceous, sizeClass: .large, rarity: .epic,
+        deployCost: 850, baseStats: UnitStats(maxHP: 820, attackDamage: 56, attackIntervalSeconds: 1.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "giant_duck_bill", name: "Giant Duck-Bill", statModifiers: StatModifiers(maxHP: 100), abilityDescription: "Largest known hadrosaur, extra tough.")
+        ]
+    ),
+    UnitDefinition(
+        id: "argentinosaurus", name: "Argentinosaurus", era: .cretaceous, sizeClass: .apex, rarity: .legendary,
+        deployCost: 1950, baseStats: UnitStats(maxHP: 2100, attackDamage: 140, attackIntervalSeconds: 2.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "colossal_titan", name: "Colossal Titan", statModifiers: StatModifiers(maxHP: 400), abilityDescription: "One of the largest land animals ever, immense HP."),
+            EvolutionBranch(id: "earth_shaker", name: "Earth-Shaker", statModifiers: StatModifiers(attackDamage: 20, grantsKnockbackAttack: true), abilityDescription: "Titanic footfalls knock enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "patagotitan", name: "Patagotitan", era: .cretaceous, sizeClass: .apex, rarity: .legendary,
+        deployCost: 1900, baseStats: UnitStats(maxHP: 2050, attackDamage: 138, attackIntervalSeconds: 2.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "patagonian_giant", name: "Patagonian Giant", statModifiers: StatModifiers(maxHP: 350), abilityDescription: "Among the heaviest titanosaurs, extra HP."),
+            EvolutionBranch(id: "record_breaker", name: "Record Breaker", statModifiers: StatModifiers(attackDamage: 25), abilityDescription: "Among the heaviest animals ever, raw crushing power.")
+        ]
+    ),
+    UnitDefinition(
+        id: "dreadnoughtus", name: "Dreadnoughtus", era: .cretaceous, sizeClass: .apex, rarity: .legendary,
+        deployCost: 1880, baseStats: UnitStats(maxHP: 2000, attackDamage: 135, attackIntervalSeconds: 2.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "fearless_titan", name: "Fearless Titan", statModifiers: StatModifiers(attackDamage: 20), abilityDescription: "True to its name, hits devastatingly hard."),
+            EvolutionBranch(id: "nothing_to_fear", name: "Nothing to Fear", statModifiers: StatModifiers(maxHP: 300), abilityDescription: "Utterly unbothered by threats, even more HP.")
+        ]
+    ),
+    UnitDefinition(
+        id: "mamenchisaurus", name: "Mamenchisaurus", era: .jurassic, sizeClass: .apex, rarity: .legendary,
+        deployCost: 1750, baseStats: UnitStats(maxHP: 1900, attackDamage: 130, attackIntervalSeconds: 2.4, rangeUnits: 1.2, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "longest_neck", name: "Longest Neck", statModifiers: StatModifiers(maxHP: 250), abilityDescription: "Longest neck of any dinosaur, extra reach and HP."),
+            EvolutionBranch(id: "neck_whip", name: "Neck Whip", statModifiers: StatModifiers(grantsKnockbackAttack: true), abilityDescription: "Swings its immense neck like a whip, knocking enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "supersaurus", name: "Supersaurus", era: .jurassic, sizeClass: .apex, rarity: .legendary,
+        deployCost: 1850, baseStats: UnitStats(maxHP: 2000, attackDamage: 135, attackIntervalSeconds: 2.5, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "super_giant", name: "Super Giant", statModifiers: StatModifiers(maxHP: 350), abilityDescription: "One of the longest dinosaurs ever, immense HP."),
+            EvolutionBranch(id: "ground_tremor", name: "Ground Tremor", statModifiers: StatModifiers(attackDamage: 15, grantsKnockbackAttack: true), abilityDescription: "Every step shakes the ground, knocking enemies back.")
+        ]
+    ),
+    UnitDefinition(
+        id: "giraffatitan", name: "Giraffatitan", era: .jurassic, sizeClass: .apex, rarity: .legendary,
+        deployCost: 1780, baseStats: UnitStats(maxHP: 1950, attackDamage: 132, attackIntervalSeconds: 2.4, rangeUnits: 1.0, knockbackResistant: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "towering_grazer", name: "Towering Grazer", statModifiers: StatModifiers(maxHP: 300), abilityDescription: "Towering brachiosaurid, immense HP."),
+            EvolutionBranch(id: "canopy_reach", name: "Canopy Reach", statModifiers: StatModifiers(attackDamage: 18), abilityDescription: "Browses the highest canopy, hits harder.")
+        ]
     )
 ]
 
