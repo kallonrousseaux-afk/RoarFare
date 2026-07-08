@@ -32,6 +32,19 @@ enum SizeClass {
         case .apex: return 8
         }
     }
+
+    /// Lane-crossing speed, scaled by size -- small/light dinosaurs cross the lane noticeably
+    /// faster than lumbering Apex ones, instead of every unit sharing one uniform walk speed.
+    /// Baseline is higher across the board than the old flat 5.0 (per "slightly faster").
+    var baseWalkSpeed: Double {
+        switch self {
+        case .tiny: return 8.0
+        case .small: return 7.0
+        case .medium: return 6.0
+        case .large: return 4.5
+        case .apex: return 3.5
+        }
+    }
 }
 
 enum Rarity {
@@ -245,24 +258,29 @@ final class Lane {
         }
     }
 
-    func tick(deltaTime: Double, walkSpeed: Double = 5.0) {
+    func tick(deltaTime: Double) {
         resolveCombatAndMovement(
             attackers: &playerUnits, defenders: &enemyUnits,
             advancesTowardIncreasingPosition: true, defendersBaseHP: &enemyBaseHP,
-            deltaTime: deltaTime, walkSpeed: walkSpeed
+            deltaTime: deltaTime
         )
         resolveCombatAndMovement(
             attackers: &enemyUnits, defenders: &playerUnits,
             advancesTowardIncreasingPosition: false, defendersBaseHP: &playerBaseHP,
-            deltaTime: deltaTime, walkSpeed: walkSpeed
+            deltaTime: deltaTime
         )
         clearDefeatedUnits()
     }
 
+    /// Flying units get a flat speed bonus on top of their size-class baseline -- they're
+    /// agile fliers, not just "a ground unit that happens to dodge melee" (see `SizeClass`
+    /// for the size scaling itself).
+    private static let flyingWalkSpeedBonus = 1.5
+
     private func resolveCombatAndMovement(
         attackers: inout [DeployedUnit], defenders: inout [DeployedUnit],
         advancesTowardIncreasingPosition: Bool, defendersBaseHP: inout Int,
-        deltaTime: Double, walkSpeed: Double
+        deltaTime: Double
     ) {
         for i in attackers.indices {
             guard attackers[i].isAlive else { continue }
@@ -303,7 +321,9 @@ final class Lane {
                     attackers[i].attackCooldownRemaining = stats.attackIntervalSeconds
                 }
             } else {
-                let delta = (advancesTowardIncreasingPosition ? 1.0 : -1.0) * walkSpeed * deltaTime
+                var unitWalkSpeed = attackers[i].definition.sizeClass.baseWalkSpeed
+                if stats.isFlying { unitWalkSpeed += Self.flyingWalkSpeedBonus }
+                let delta = (advancesTowardIncreasingPosition ? 1.0 : -1.0) * unitWalkSpeed * deltaTime
                 var newPosition = attackers[i].position + delta
                 newPosition = advancesTowardIncreasingPosition ? min(newPosition, length) : max(newPosition, 0)
                 attackers[i].position = newPosition
@@ -572,18 +592,18 @@ let populatedEras: [Era] = [.triassic, .jurassic, .cretaceous]
 
 final class BattleScene: SKScene, ObservableObject {
     private let startingBaseHP = 1000
-    private var lane = Lane(length: 900, playerBaseHP: 1000, enemyBaseHP: 1000)
+    private var lane = Lane(length: 750, playerBaseHP: 1000, enemyBaseHP: 1000)
     // (kept as literal 1000 above since stored-property initializers can't reference sibling
     // properties -- `startingBaseHP` is used everywhere else: reset(), endGameByTimeLimit())
     private var lastUpdateTime: TimeInterval?
 
-    // A 10-minute match clock: if neither base is destroyed by then, whoever dealt more
+    // An 8-minute match clock: if neither base is destroyed by then, whoever dealt more
     // cumulative damage to the opposing base wins (a draw if exactly tied). The last 3 minutes
     // double both sides' Amber income, so the match has a real climax instead of just petering
     // out if it runs long.
     private var matchElapsedTime: Double = 0
-    private let matchDurationSeconds: Double = 600
-    private let doubleAmberStartSeconds: Double = 420
+    private let matchDurationSeconds: Double = 480
+    private let doubleAmberStartSeconds: Double = 300
     private var isInDoubleAmberPhase: Bool { matchElapsedTime >= doubleAmberStartSeconds }
 
     // Amber is tracked as a whole number (it was only ever displayed as Int anyway) and
@@ -692,7 +712,7 @@ final class BattleScene: SKScene, ObservableObject {
     /// Resets the battle to its starting state so the SwiftUI layer can offer "Play Again"
     /// instead of the game being stuck forever once someone wins or loses.
     func reset() {
-        lane = Lane(length: 900, playerBaseHP: startingBaseHP, enemyBaseHP: startingBaseHP)
+        lane = Lane(length: 750, playerBaseHP: startingBaseHP, enemyBaseHP: startingBaseHP)
         amberAccumulator = 0
         amber = 0
         amberPerSecond = baseAmberPerSecond
@@ -834,7 +854,7 @@ final class BattleScene: SKScene, ObservableObject {
         }
     }
 
-    /// Neither base was destroyed within the 10-minute match clock -- whoever dealt more
+    /// Neither base was destroyed within the 8-minute match clock -- whoever dealt more
     /// cumulative damage to the opposing base wins, same as the request's "most damage to the
     /// other's tower" rule. Base HP only ever decreases, so `startingBaseHP - remainingHP` is
     /// exactly the damage dealt, including any overkill past 0.
