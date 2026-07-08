@@ -185,32 +185,48 @@ struct DeployedUnit: Identifiable {
     let id = UUID()
     let definition: UnitDefinition
     let activeBranchID: String?
+    /// From `PlayerProfile.level(for:)` at deploy time -- Enhance and evolution-branch stack
+    /// independently (see `effectiveStats`), so a unit can be both evolved and leveled up.
+    let enhancementLevel: Int
     var currentHP: Int
     var position: Double
     var attackCooldownRemaining: Double = 0
     var hasUsedFirstStrike: Bool = false
 
-    init(definition: UnitDefinition, activeBranchID: String? = nil, position: Double) {
+    init(definition: UnitDefinition, activeBranchID: String? = nil, enhancementLevel: Int = 1, position: Double) {
         self.definition = definition
         self.activeBranchID = activeBranchID
+        self.enhancementLevel = enhancementLevel
         self.position = position
-        self.currentHP = Self.effectiveStats(definition: definition, activeBranchID: activeBranchID).maxHP
+        self.currentHP = Self.effectiveStats(definition: definition, activeBranchID: activeBranchID, enhancementLevel: enhancementLevel).maxHP
     }
 
     var blockingUnits: Int { definition.sizeClass.blockingUnits }
     var isAlive: Bool { currentHP > 0 }
-    var effectiveStats: UnitStats { Self.effectiveStats(definition: definition, activeBranchID: activeBranchID) }
+    var effectiveStats: UnitStats {
+        Self.effectiveStats(definition: definition, activeBranchID: activeBranchID, enhancementLevel: enhancementLevel)
+    }
 
     var activeAbility: Ability? {
         guard let branchID = activeBranchID else { return nil }
         return definition.branch(withID: branchID)?.ability
     }
 
-    private static func effectiveStats(definition: UnitDefinition, activeBranchID: String?) -> UnitStats {
-        guard let branchID = activeBranchID, let branch = definition.branch(withID: branchID) else {
-            return definition.baseStats
+    /// +5% attackDamage and maxHP per Enhance level above 1 (level `PlayerProfile.maxLevel` =
+    /// +45%), applied on top of the evolution branch's stat deltas.
+    private static func effectiveStats(definition: UnitDefinition, activeBranchID: String?, enhancementLevel: Int) -> UnitStats {
+        let branched: UnitStats
+        if let branchID = activeBranchID, let branch = definition.branch(withID: branchID) {
+            branched = definition.baseStats.applying(branch.statModifiers)
+        } else {
+            branched = definition.baseStats
         }
-        return definition.baseStats.applying(branch.statModifiers)
+        guard enhancementLevel > 1 else { return branched }
+        let multiplier = 1.0 + 0.05 * Double(enhancementLevel - 1)
+        var enhanced = branched
+        enhanced.maxHP = Int((Double(branched.maxHP) * multiplier).rounded())
+        enhanced.attackDamage = Int((Double(branched.attackDamage) * multiplier).rounded())
+        return enhanced
     }
 }
 
@@ -273,7 +289,7 @@ final class Lane {
     }
 
     @discardableResult
-    func deploy(_ definition: UnitDefinition, activeBranchID: String? = nil, to side: Side) -> Bool {
+    func deploy(_ definition: UnitDefinition, activeBranchID: String? = nil, enhancementLevel: Int = 1, to side: Side) -> Bool {
         guard currentBU(for: side) + definition.sizeClass.blockingUnits <= frontlineBUCap else {
             return false
         }
@@ -281,7 +297,7 @@ final class Lane {
             return false
         }
         let startPosition = side == .player ? 0 : length
-        let unit = DeployedUnit(definition: definition, activeBranchID: activeBranchID, position: startPosition)
+        let unit = DeployedUnit(definition: definition, activeBranchID: activeBranchID, enhancementLevel: enhancementLevel, position: startPosition)
         switch side {
         case .player: playerUnits.append(unit)
         case .enemy: enemyUnits.append(unit)
@@ -777,11 +793,11 @@ final class BattleScene: SKScene, ObservableObject {
         addChild(statusLabel)
     }
 
-    func deployPlayerUnit(unitIndex: Int, branchID: String? = nil) {
+    func deployPlayerUnit(unitIndex: Int, branchID: String? = nil, enhancementLevel: Int = 1) {
         guard !isGameOver, bundledUnits.indices.contains(unitIndex) else { return }
         let unit = bundledUnits[unitIndex]
         guard unit.deployCost <= amber else { return }
-        guard lane.deploy(unit, activeBranchID: branchID, to: .player) else { return }
+        guard lane.deploy(unit, activeBranchID: branchID, enhancementLevel: enhancementLevel, to: .player) else { return }
         amber -= unit.deployCost
         // Keep the fractional accumulator in sync with the spend, or next frame's re-derivation
         // of `amber` from the accumulator would silently undo this deduction.
@@ -802,6 +818,7 @@ final class BattleScene: SKScene, ObservableObject {
         enemySpawnCheckTimer = 0
         lastUpdateTime = nil
         isGameOver = false
+        didPlayerWin = nil
         statusLabel.isHidden = true
         for visual in playerVisuals.values { visual.container.removeFromParent() }
         for visual in enemyVisuals.values { visual.container.removeFromParent() }
@@ -933,9 +950,9 @@ final class BattleScene: SKScene, ObservableObject {
 
     private func checkGameOver() {
         if lane.enemyBaseHP <= 0 {
-            endGame(message: "YOU WIN")
+            endGame(message: "YOU WIN", didWin: true)
         } else if lane.playerBaseHP <= 0 {
-            endGame(message: "YOU LOSE")
+            endGame(message: "YOU LOSE", didWin: false)
         }
     }
 
@@ -947,61 +964,182 @@ final class BattleScene: SKScene, ObservableObject {
         let playerDamageDealt = startingBaseHP - lane.enemyBaseHP
         let enemyDamageDealt = startingBaseHP - lane.playerBaseHP
         if playerDamageDealt > enemyDamageDealt {
-            endGame(message: "TIME UP — YOU WIN")
+            endGame(message: "TIME UP — YOU WIN", didWin: true)
         } else if enemyDamageDealt > playerDamageDealt {
-            endGame(message: "TIME UP — YOU LOSE")
+            endGame(message: "TIME UP — YOU LOSE", didWin: false)
         } else {
-            endGame(message: "TIME UP — DRAW")
+            endGame(message: "TIME UP — DRAW", didWin: nil)
         }
     }
 
-    private func endGame(message: String) {
+    /// Set alongside `isGameOver` so the SwiftUI layer can grant a Fossil reward exactly once
+    /// per match (see `BattleView`'s `onChange(of: scene.isGameOver)`) without re-deriving
+    /// win/loss from the status text. `nil` covers the time-limit draw case.
+    @Published private(set) var didPlayerWin: Bool?
+
+    private func endGame(message: String, didWin: Bool?) {
         isGameOver = true
+        didPlayerWin = didWin
         statusLabel.text = message
         statusLabel.isHidden = false
     }
 }
 
+// MARK: - Player persistence
+
+/// The app's first real persistence -- everything else (a match's Amber, base HP, upgrades)
+/// resets every time per `BattleScene.reset()`, but Fossils, which dinosaurs are unlocked, and
+/// Enhance levels survive across app launches via `UserDefaults`.
+final class PlayerProfile: ObservableObject {
+    private static let fossilsKey = "roarfare.fossils"
+    private static let ownedKey = "roarfare.ownedUnitIDs"
+    private static let levelsKey = "roarfare.unitLevels"
+
+    static let startingFossils = 500
+    // Matches RoarFareContentView.loadoutCap exactly, so the default owned set and the default
+    // loadout line up on a fresh install -- nothing in the starting loadout is locked.
+    static let startingOwnedCount = 10
+    static let maxLevel = 10
+    static let enhanceCostPerLevel = 80
+    static let summonCost = 150
+    static let battleWinReward = 100
+    static let battleLossReward = 30
+
+    @Published var fossils: Int {
+        didSet { UserDefaults.standard.set(fossils, forKey: Self.fossilsKey) }
+    }
+    @Published var ownedUnitIDs: Set<String> {
+        didSet { UserDefaults.standard.set(Array(ownedUnitIDs), forKey: Self.ownedKey) }
+    }
+    @Published var unitLevels: [String: Int] {
+        didSet { UserDefaults.standard.set(unitLevels, forKey: Self.levelsKey) }
+    }
+
+    init() {
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: Self.fossilsKey) != nil {
+            fossils = defaults.integer(forKey: Self.fossilsKey)
+        } else {
+            fossils = Self.startingFossils
+        }
+        if let savedOwned = defaults.array(forKey: Self.ownedKey) as? [String] {
+            ownedUnitIDs = Set(savedOwned)
+        } else {
+            ownedUnitIDs = Set(bundledUnits.prefix(Self.startingOwnedCount).map(\.id))
+        }
+        unitLevels = defaults.dictionary(forKey: Self.levelsKey) as? [String: Int] ?? [:]
+    }
+
+    var lockedUnitIDs: [String] {
+        bundledUnits.map(\.id).filter { !ownedUnitIDs.contains($0) }
+    }
+
+    func level(for unitID: String) -> Int {
+        unitLevels[unitID] ?? 1
+    }
+
+    func enhanceCost(for unitID: String) -> Int {
+        Self.enhanceCostPerLevel * level(for: unitID)
+    }
+
+    @discardableResult
+    func enhance(_ unitID: String) -> Bool {
+        let currentLevel = level(for: unitID)
+        guard currentLevel < Self.maxLevel else { return false }
+        let cost = enhanceCost(for: unitID)
+        guard fossils >= cost else { return false }
+        fossils -= cost
+        unitLevels[unitID] = currentLevel + 1
+        return true
+    }
+
+    enum SummonResult {
+        case unlocked(String)
+        case allOwnedRefunded
+        case notEnoughFossils
+    }
+
+    /// A deliberately simplified single-pull gacha -- no rarity-weighted rates or pity counter
+    /// like `MONETIZATION.md`'s full Fossil Dig spec, just a flat pull from whatever's still
+    /// locked. If everything's already owned, half the spend is refunded rather than wasted.
+    @discardableResult
+    func summon() -> SummonResult {
+        guard fossils >= Self.summonCost else { return .notEnoughFossils }
+        fossils -= Self.summonCost
+        guard let pick = lockedUnitIDs.randomElement() else {
+            fossils += Self.summonCost / 2
+            return .allOwnedRefunded
+        }
+        ownedUnitIDs.insert(pick)
+        return .unlocked(pick)
+    }
+
+    func rewardForMatch(didWin: Bool) {
+        fossils += didWin ? Self.battleWinReward : Self.battleLossReward
+    }
+}
+
 // MARK: - SwiftUI host view
 
-/// Root view: a Clash Royale-style flow -- a persistent main menu where the loadout is set up
-/// (not something you dip into mid-match), with a distinct "Battle" step into the actual fight.
-/// Every trip into `.battle` gets a brand-new `BattleScene` (see `BattleView`'s `@StateObject`),
-/// so leaving to the menu and battling again always starts a clean match.
+/// Root view: owns the persistent `PlayerProfile` and the loadout, routing between the true
+/// main menu and its sub-screens. Every trip into `.battle` gets a brand-new `BattleScene` (see
+/// `BattleView`'s `@StateObject`), so leaving to the menu and battling again always starts a
+/// clean match.
 struct RoarFareContentView: View {
     private enum AppScreen {
-        case mainMenu, battle
+        case mainMenu, campaignMenu, battle, pvp, summons, enhance
     }
 
     // Battle Cats-style loadout: you own the whole roster, but only bring `loadoutCap` units
     // into any one match -- forces a real pick each game instead of always having full access
     // to every unit, which is the actual point ("more variety in games"). Defaults to the
-    // first 10 bundled units so there's always a valid starting loadout with no setup required.
+    // first 10 bundled units, matching `PlayerProfile.startingOwnedCount` exactly so nothing in
+    // the starting loadout is locked.
     static let loadoutCap = 10
+    @StateObject private var profile = PlayerProfile()
     @State private var loadout: Set<String> = Set(bundledUnits.prefix(loadoutCap).map(\.id))
     @State private var screen: AppScreen = .mainMenu
 
     var body: some View {
         switch screen {
         case .mainMenu:
-            MainMenuView(loadout: $loadout, onBattle: { screen = .battle })
+            MainMenuView(
+                profile: profile,
+                onCampaign: { screen = .campaignMenu },
+                onPvP: { screen = .pvp },
+                onSummons: { screen = .summons },
+                onEnhance: { screen = .enhance }
+            )
+        case .campaignMenu:
+            CampaignMenuView(
+                profile: profile, loadout: $loadout,
+                onBattle: { screen = .battle }, onHome: { screen = .mainMenu }
+            )
         case .battle:
-            BattleView(loadout: loadout, onExit: { screen = .mainMenu })
+            BattleView(profile: profile, loadout: loadout, onExit: { screen = .mainMenu })
+        case .pvp:
+            PvPStubView(onHome: { screen = .mainMenu })
+        case .summons:
+            SummonsView(profile: profile, onHome: { screen = .mainMenu })
+        case .enhance:
+            EnhanceView(profile: profile, onHome: { screen = .mainMenu })
         }
     }
 }
 
-/// The home screen: title, loadout summary/editor, and the single "BATTLE" call to action --
-/// mirrors Clash Royale's "deck lives on the home screen, tap the button to fight" structure
-/// instead of Battle Cats' pick-your-team-then-tap-a-stage flow, since RoarFare only has the one
-/// endless lane right now (no stage select yet).
+/// The true home screen -- title, Fossil balance, and the four mode buttons (Clash
+/// Royale/Battle Cats-style hub, "dinosaurs" per the brief). PvP is a stub for now: real
+/// matchmaking needs a backend, which is explicitly Phase 7 in `docs/ROADMAP.md`, not something
+/// a local single-player build can fake convincingly.
 struct MainMenuView: View {
-    @Binding var loadout: Set<String>
-    let onBattle: () -> Void
-    @State private var showingLoadoutEditor = false
+    @ObservedObject var profile: PlayerProfile
+    let onCampaign: () -> Void
+    let onPvP: () -> Void
+    let onSummons: () -> Void
+    let onEnhance: () -> Void
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             Spacer()
 
             Text("RoarFare")
@@ -1009,7 +1147,51 @@ struct MainMenuView: View {
             Text("A Dinosaur Lane Battler")
                 .font(.headline)
                 .foregroundColor(.secondary)
+            Text("🦴 \(profile.fossils) Fossils")
+                .font(.subheadline)
+                .foregroundColor(.orange)
 
+            Spacer()
+
+            menuButton("CAMPAIGN", color: .green, action: onCampaign)
+            menuButton("PVP", color: .blue, action: onPvP)
+            menuButton("SUMMONS", color: .purple, action: onSummons)
+            menuButton("ENHANCE", color: .orange, action: onEnhance)
+
+            Spacer()
+        }
+        .padding(.horizontal, 40)
+    }
+
+    private func menuButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .font(.title2.bold())
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(color.opacity(0.5))
+            .cornerRadius(14)
+    }
+}
+
+/// The Campaign sub-menu: loadout summary/editor and the "BATTLE" call to action -- this is the
+/// old root main menu's content, now one level down from the true home screen.
+struct CampaignMenuView: View {
+    @ObservedObject var profile: PlayerProfile
+    @Binding var loadout: Set<String>
+    let onBattle: () -> Void
+    let onHome: () -> Void
+    @State private var showingLoadoutEditor = false
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Button("← Home") { onHome() }
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            Spacer()
+            Text("Campaign").font(.system(size: 34, weight: .heavy, design: .rounded))
             Spacer()
 
             Button("Edit Loadout (\(loadout.count)/\(RoarFareContentView.loadoutCap))") {
@@ -1033,15 +1215,18 @@ struct MainMenuView: View {
             Spacer()
         }
         .sheet(isPresented: $showingLoadoutEditor) {
-            LoadoutEditorView(loadout: $loadout)
+            LoadoutEditorView(loadout: $loadout, ownedUnitIDs: profile.ownedUnitIDs)
         }
     }
 }
 
 /// The actual match screen -- SpriteKit battle scene plus the deploy/upgrade/attack HUD. Takes
 /// `loadout` as a plain (non-binding) value on purpose: the loadout you brought into a battle
-/// shouldn't change mid-fight, only back on the main menu between matches.
+/// shouldn't change mid-fight, only back on the main menu between matches. Deploys now carry
+/// each unit's current Enhance level from `profile`, and a match's end grants a Fossil reward
+/// exactly once via `onChange(of: scene.isGameOver)`.
 struct BattleView: View {
+    @ObservedObject var profile: PlayerProfile
     let loadout: Set<String>
     let onExit: () -> Void
 
@@ -1125,7 +1310,11 @@ struct BattleView: View {
                     ForEach(visibleOptions) { option in
                         let affordable = option.cost <= scene.amber
                         Button(option.label) {
-                            scene.deployPlayerUnit(unitIndex: option.unitIndex, branchID: option.branchID)
+                            let unitID = bundledUnits[option.unitIndex].id
+                            scene.deployPlayerUnit(
+                                unitIndex: option.unitIndex, branchID: option.branchID,
+                                enhancementLevel: profile.level(for: unitID)
+                            )
                         }
                         .padding(8)
                         .background((affordable ? Color.blue : Color.gray).opacity(0.3))
@@ -1136,22 +1325,30 @@ struct BattleView: View {
                 .padding()
             }
         }
+        .onChange(of: scene.isGameOver) { isOver in
+            guard isOver else { return }
+            profile.rewardForMatch(didWin: scene.didPlayerWin == true)
+        }
     }
 }
 
-/// Toggle up to `RoarFareContentView.loadoutCap` units in/out of the loadout. Once the cap is
-/// hit, unselected rows disable themselves rather than silently no-op'ing on tap, so it's clear
-/// *why* nothing happened when you try to add an 11th unit.
+/// Toggle up to `RoarFareContentView.loadoutCap` units in/out of the loadout. Locked units (not
+/// yet unlocked via Summons) show a 🔒 and can't be selected at all. Once the cap is hit,
+/// unselected-but-owned rows disable themselves rather than silently no-op'ing on tap, so it's
+/// clear *why* nothing happened when you try to add an 11th unit.
 struct LoadoutEditorView: View {
     @Binding var loadout: Set<String>
+    let ownedUnitIDs: Set<String>
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationView {
             List(bundledUnits) { unit in
+                let owned = ownedUnitIDs.contains(unit.id)
                 let isSelected = loadout.contains(unit.id)
                 let atCap = loadout.count >= RoarFareContentView.loadoutCap
                 Button {
+                    guard owned else { return }
                     if isSelected {
                         loadout.remove(unit.id)
                     } else if !atCap {
@@ -1160,14 +1357,17 @@ struct LoadoutEditorView: View {
                 } label: {
                     HStack {
                         Text(unit.name)
+                        if !owned {
+                            Text("🔒").font(.caption)
+                        }
                         Spacer()
                         if isSelected {
                             Image(systemName: "checkmark.circle.fill")
                         }
                     }
                 }
-                .disabled(!isSelected && atCap)
-                .foregroundColor(isSelected ? .primary : (atCap ? .gray : .primary))
+                .disabled(!owned || (!isSelected && atCap))
+                .foregroundColor(!owned ? .gray : (isSelected ? .primary : (atCap ? .gray : .primary)))
             }
             .navigationTitle("Loadout (\(loadout.count)/\(RoarFareContentView.loadoutCap))")
             .toolbar {
@@ -1175,6 +1375,136 @@ struct LoadoutEditorView: View {
                     Button("Done") { dismiss() }
                 }
             }
+        }
+    }
+}
+
+/// A single-pull Summons screen -- see `PlayerProfile.summon()` for exactly how simplified this
+/// is versus `MONETIZATION.md`'s full Fossil Dig spec (no rates, no pity, no rarity weighting).
+struct SummonsView: View {
+    @ObservedObject var profile: PlayerProfile
+    let onHome: () -> Void
+    @State private var lastResultMessage: String?
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Button("← Home") { onHome() }
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            Spacer()
+            Text("Summons").font(.system(size: 34, weight: .heavy, design: .rounded))
+            Text("🦴 \(profile.fossils) Fossils").foregroundColor(.orange)
+            Text("\(profile.lockedUnitIDs.count) of \(bundledUnits.count) dinosaurs still locked")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            if let message = lastResultMessage {
+                Text(message)
+                    .font(.headline)
+                    .padding()
+                    .background(Color.yellow.opacity(0.2))
+                    .cornerRadius(10)
+            }
+
+            let affordable = profile.fossils >= PlayerProfile.summonCost
+            Button("Summon (\(PlayerProfile.summonCost) 🦴)") {
+                switch profile.summon() {
+                case .unlocked(let unitID):
+                    let name = bundledUnits.first(where: { $0.id == unitID })?.name ?? unitID
+                    lastResultMessage = "Unlocked \(name)!"
+                case .allOwnedRefunded:
+                    lastResultMessage = "All dinosaurs already unlocked — refunded half in Fossils."
+                case .notEnoughFossils:
+                    lastResultMessage = "Not enough Fossils."
+                }
+            }
+            .font(.title2.bold())
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background((affordable ? Color.purple : Color.gray).opacity(0.5))
+            .cornerRadius(14)
+            .disabled(!affordable)
+            .padding(.horizontal, 40)
+
+            Spacer()
+        }
+    }
+}
+
+/// Spend Fossils to permanently level up an owned unit (+5% attackDamage/maxHP per level, see
+/// `DeployedUnit.effectiveStats`, capped at `PlayerProfile.maxLevel`). Only shows owned units --
+/// nothing to enhance until Summons unlocks it.
+struct EnhanceView: View {
+    @ObservedObject var profile: PlayerProfile
+    let onHome: () -> Void
+
+    private var ownedUnits: [UnitDefinition] {
+        bundledUnits.filter { profile.ownedUnitIDs.contains($0.id) }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button("← Home") { onHome() }
+                Spacer()
+                Text("🦴 \(profile.fossils)").foregroundColor(.orange)
+            }
+            .padding()
+
+            Text("Enhance")
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .padding(.bottom, 8)
+
+            List(ownedUnits) { unit in
+                let level = profile.level(for: unit.id)
+                let maxed = level >= PlayerProfile.maxLevel
+                let cost = profile.enhanceCost(for: unit.id)
+                let affordable = profile.fossils >= cost
+
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(unit.name)
+                        Text(maxed ? "Level \(level) (MAX)" : "Level \(level) → \(level + 1)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    if !maxed {
+                        Button("+\(cost) 🦴") {
+                            profile.enhance(unit.id)
+                        }
+                        .disabled(!affordable)
+                        .foregroundColor(affordable ? .primary : .gray)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Placeholder for real PvP -- matchmaking and a live opponent need a backend this local
+/// single-player build doesn't have (see `docs/ROADMAP.md` Phase 7, "Rival Grounds").
+struct PvPStubView: View {
+    let onHome: () -> Void
+
+    var body: some View {
+        VStack(spacing: 20) {
+            HStack {
+                Button("← Home") { onHome() }
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            Spacer()
+            Text("PvP").font(.system(size: 34, weight: .heavy, design: .rounded))
+            Text("Rival Grounds is planned but needs a real backend for matchmaking and live opponents — see docs/ROADMAP.md Phase 7. Not built yet.")
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 30)
+            Spacer()
         }
     }
 }
