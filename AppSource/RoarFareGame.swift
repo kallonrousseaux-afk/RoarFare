@@ -571,8 +571,20 @@ let populatedEras: [Era] = [.triassic, .jurassic, .cretaceous]
 // MARK: - SpriteKit battle scene
 
 final class BattleScene: SKScene, ObservableObject {
+    private let startingBaseHP = 1000
     private var lane = Lane(length: 900, playerBaseHP: 1000, enemyBaseHP: 1000)
+    // (kept as literal 1000 above since stored-property initializers can't reference sibling
+    // properties -- `startingBaseHP` is used everywhere else: reset(), endGameByTimeLimit())
     private var lastUpdateTime: TimeInterval?
+
+    // A 10-minute match clock: if neither base is destroyed by then, whoever dealt more
+    // cumulative damage to the opposing base wins (a draw if exactly tied). The last 3 minutes
+    // double both sides' Amber income, so the match has a real climax instead of just petering
+    // out if it runs long.
+    private var matchElapsedTime: Double = 0
+    private let matchDurationSeconds: Double = 600
+    private let doubleAmberStartSeconds: Double = 420
+    private var isInDoubleAmberPhase: Bool { matchElapsedTime >= doubleAmberStartSeconds }
 
     // Amber is tracked as a whole number (it was only ever displayed as Int anyway) and
     // @Published is only updated when that whole number actually changes -- publishing every
@@ -635,6 +647,7 @@ final class BattleScene: SKScene, ObservableObject {
     private let playerBaseLabel = SKLabelNode(fontNamed: "Menlo")
     private let enemyBaseLabel = SKLabelNode(fontNamed: "Menlo")
     private let statusLabel = SKLabelNode(fontNamed: "Menlo")
+    private let timeLabel = SKLabelNode(fontNamed: "Menlo")
 
     override func didMove(to view: SKView) {
         backgroundColor = .black
@@ -653,6 +666,11 @@ final class BattleScene: SKScene, ObservableObject {
         enemyBaseLabel.horizontalAlignmentMode = .right
         enemyBaseLabel.position = CGPoint(x: size.width - 20, y: size.height - 55)
         addChild(enemyBaseLabel)
+
+        timeLabel.fontSize = 18
+        timeLabel.horizontalAlignmentMode = .center
+        timeLabel.position = CGPoint(x: size.width / 2, y: size.height - 30)
+        addChild(timeLabel)
 
         statusLabel.fontSize = 32
         statusLabel.position = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -674,12 +692,13 @@ final class BattleScene: SKScene, ObservableObject {
     /// Resets the battle to its starting state so the SwiftUI layer can offer "Play Again"
     /// instead of the game being stuck forever once someone wins or loses.
     func reset() {
-        lane = Lane(length: 900, playerBaseHP: 1000, enemyBaseHP: 1000)
+        lane = Lane(length: 900, playerBaseHP: startingBaseHP, enemyBaseHP: startingBaseHP)
         amberAccumulator = 0
         amber = 0
         amberPerSecond = baseAmberPerSecond
         baseLevel = 1
         baseAttackUsed = false
+        matchElapsedTime = 0
         enemyAmberAccumulator = 0
         enemySpawnCheckTimer = 0
         lastUpdateTime = nil
@@ -695,14 +714,16 @@ final class BattleScene: SKScene, ObservableObject {
         guard !isGameOver else { return }
         let deltaTime = lastUpdateTime.map { currentTime - $0 } ?? 0
         lastUpdateTime = currentTime
+        matchElapsedTime += deltaTime
 
-        amberAccumulator += amberPerSecond * deltaTime
+        let amberMultiplier = isInDoubleAmberPhase ? 2.0 : 1.0
+        amberAccumulator += amberPerSecond * amberMultiplier * deltaTime
         let newAmber = Int(amberAccumulator)
         if newAmber != amber {
             amber = newAmber
         }
 
-        enemyAmberAccumulator += enemyAmberPerSecond * deltaTime
+        enemyAmberAccumulator += enemyAmberPerSecond * amberMultiplier * deltaTime
         enemySpawnCheckTimer += deltaTime
         if enemySpawnCheckTimer >= enemySpawnCheckInterval {
             enemySpawnCheckTimer = 0
@@ -718,6 +739,9 @@ final class BattleScene: SKScene, ObservableObject {
         sync(units: lane.enemyUnits, visuals: &enemyVisuals, sideColor: .systemRed)
         updateLabels()
         checkGameOver()
+        if !isGameOver, matchElapsedTime >= matchDurationSeconds {
+            endGameByTimeLimit()
+        }
     }
 
     private func sync(units: [DeployedUnit], visuals: inout [UUID: UnitVisual], sideColor: SKColor) {
@@ -794,9 +818,12 @@ final class BattleScene: SKScene, ObservableObject {
     }
 
     private func updateLabels() {
-        amberLabel.text = "Amber: \(amber)"
+        let multiplierTag = isInDoubleAmberPhase ? " (2x)" : ""
+        amberLabel.text = "Amber: \(amber)\(multiplierTag)"
         playerBaseLabel.text = "Base: \(max(0, lane.playerBaseHP))"
         enemyBaseLabel.text = "Enemy Base: \(max(0, lane.enemyBaseHP))"
+        let remaining = max(0, Int((matchDurationSeconds - matchElapsedTime).rounded(.up)))
+        timeLabel.text = String(format: "Time: %d:%02d", remaining / 60, remaining % 60)
     }
 
     private func checkGameOver() {
@@ -804,6 +831,22 @@ final class BattleScene: SKScene, ObservableObject {
             endGame(message: "YOU WIN")
         } else if lane.playerBaseHP <= 0 {
             endGame(message: "YOU LOSE")
+        }
+    }
+
+    /// Neither base was destroyed within the 10-minute match clock -- whoever dealt more
+    /// cumulative damage to the opposing base wins, same as the request's "most damage to the
+    /// other's tower" rule. Base HP only ever decreases, so `startingBaseHP - remainingHP` is
+    /// exactly the damage dealt, including any overkill past 0.
+    private func endGameByTimeLimit() {
+        let playerDamageDealt = startingBaseHP - lane.enemyBaseHP
+        let enemyDamageDealt = startingBaseHP - lane.playerBaseHP
+        if playerDamageDealt > enemyDamageDealt {
+            endGame(message: "TIME UP — YOU WIN")
+        } else if enemyDamageDealt > playerDamageDealt {
+            endGame(message: "TIME UP — YOU LOSE")
+        } else {
+            endGame(message: "TIME UP — DRAW")
         }
     }
 
