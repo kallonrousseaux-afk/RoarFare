@@ -2,6 +2,7 @@ import Foundation
 import SpriteKit
 import SwiftUI
 import Combine
+import UIKit
 
 // MARK: - Core types (mirrors RoarFareCore, inlined so this is a single drop-in file)
 
@@ -755,11 +756,13 @@ final class BattleScene: SKScene, ObservableObject {
     private let playerBaseLabel = SKLabelNode(fontNamed: "Menlo")
     private let enemyBaseLabel = SKLabelNode(fontNamed: "Menlo")
     private let statusLabel = SKLabelNode(fontNamed: "Menlo")
+    private let statusBacking = SKShapeNode(rectOf: CGSize(width: 260, height: 50), cornerRadius: 10)
     private let timeLabel = SKLabelNode(fontNamed: "Menlo")
     private let synergyLabel = SKLabelNode(fontNamed: "Menlo")
 
     override func didMove(to view: SKView) {
         backgroundColor = .black
+        buildScenery()
 
         amberLabel.fontSize = 18
         amberLabel.horizontalAlignmentMode = .left
@@ -787,10 +790,107 @@ final class BattleScene: SKScene, ObservableObject {
         synergyLabel.position = CGPoint(x: size.width / 2, y: size.height - 55)
         addChild(synergyLabel)
 
+        statusBacking.fillColor = SKColor.black.withAlphaComponent(0.55)
+        statusBacking.strokeColor = .clear
+        statusBacking.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        statusBacking.zPosition = 7
+        statusBacking.isHidden = true
+        addChild(statusBacking)
+
         statusLabel.fontSize = 32
+        statusLabel.fontColor = .white
         statusLabel.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        statusLabel.zPosition = 8
         statusLabel.isHidden = true
         addChild(statusLabel)
+
+        let hudBacking = SKShapeNode(rectOf: CGSize(width: size.width, height: 62), cornerRadius: 0)
+        hudBacking.fillColor = SKColor.black.withAlphaComponent(0.35)
+        hudBacking.strokeColor = .clear
+        hudBacking.position = CGPoint(x: size.width / 2, y: size.height - 30)
+        hudBacking.zPosition = 5
+        addChild(hudBacking)
+        [amberLabel, playerBaseLabel, enemyBaseLabel, timeLabel, synergyLabel].forEach { $0.zPosition = 6 }
+    }
+
+    /// Placeholder environment art -- no real illustrated backgrounds exist yet (see
+    /// `docs/ART_BIBLE.md` §5), but a flat black `SKScene` reads as broken/unfinished rather
+    /// than "no art yet." This is all procedural (a CoreGraphics-rendered sky gradient plus
+    /// SpriteKit shape primitives for the ground/mountains/foliage), so it needs zero external
+    /// assets and can't be blocked by image-generation credits the way real art is.
+    private func buildScenery() {
+        let skyTexture = Self.gradientTexture(
+            size: size,
+            colors: [
+                SKColor(red: 0.96, green: 0.85, blue: 0.62, alpha: 1),
+                SKColor(red: 0.55, green: 0.72, blue: 0.52, alpha: 1)
+            ]
+        )
+        let sky = SKSpriteNode(texture: skyTexture, size: size)
+        sky.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        sky.zPosition = -100
+        addChild(sky)
+
+        let sun = SKShapeNode(circleOfRadius: 22)
+        sun.fillColor = SKColor(red: 1.0, green: 0.87, blue: 0.55, alpha: 0.9)
+        sun.strokeColor = .clear
+        sun.position = CGPoint(x: size.width * 0.85, y: size.height * 0.82)
+        sun.zPosition = -90
+        addChild(sun)
+
+        let mountainColor = SKColor(red: 0.35, green: 0.45, blue: 0.32, alpha: 0.55)
+        for (xFraction, peakHeight, widthFraction) in [(0.15, 90.0, 0.4), (0.45, 120.0, 0.5), (0.78, 75.0, 0.35)] {
+            let path = CGMutablePath()
+            let baseY = size.height / 2 + 10
+            let centerX = size.width * CGFloat(xFraction)
+            let halfWidth = size.width * CGFloat(widthFraction) / 2
+            path.move(to: CGPoint(x: centerX - halfWidth, y: baseY))
+            path.addLine(to: CGPoint(x: centerX, y: baseY + CGFloat(peakHeight)))
+            path.addLine(to: CGPoint(x: centerX + halfWidth, y: baseY))
+            path.closeSubpath()
+            let mountain = SKShapeNode(path: path)
+            mountain.fillColor = mountainColor
+            mountain.strokeColor = .clear
+            mountain.zPosition = -80
+            addChild(mountain)
+        }
+
+        // The ground band units actually walk along -- matches the `altitudeOffset` baseline
+        // in `sync(units:visuals:sideColor:)` so units visibly stand on it instead of floating.
+        let ground = SKShapeNode(rectOf: CGSize(width: size.width, height: 70))
+        ground.fillColor = SKColor(red: 0.42, green: 0.33, blue: 0.2, alpha: 1)
+        ground.strokeColor = .clear
+        ground.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        ground.zPosition = -50
+        addChild(ground)
+
+        let plantColor = SKColor(red: 0.22, green: 0.4, blue: 0.2, alpha: 0.8)
+        let plantXFractions: [CGFloat] = [0.08, 0.22, 0.38, 0.62, 0.78, 0.92]
+        for xFraction in plantXFractions {
+            let plant = SKShapeNode(ellipseOf: CGSize(width: 18, height: 10))
+            plant.fillColor = plantColor
+            plant.strokeColor = .clear
+            plant.position = CGPoint(x: size.width * xFraction, y: size.height / 2 - 30)
+            plant.zPosition = -40
+            addChild(plant)
+        }
+    }
+
+    private static func gradientTexture(size: CGSize, colors: [SKColor]) -> SKTexture {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { context in
+            let cgColors = colors.map(\.cgColor) as CFArray
+            guard let gradient = CGGradient(
+                colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cgColors, locations: [0, 1]
+            ) else { return }
+            context.cgContext.drawLinearGradient(
+                gradient,
+                start: CGPoint(x: size.width / 2, y: 0),
+                end: CGPoint(x: size.width / 2, y: size.height),
+                options: []
+            )
+        }
+        return SKTexture(image: image)
     }
 
     func deployPlayerUnit(unitIndex: Int, branchID: String? = nil, enhancementLevel: Int = 1) {
@@ -820,6 +920,7 @@ final class BattleScene: SKScene, ObservableObject {
         isGameOver = false
         didPlayerWin = nil
         statusLabel.isHidden = true
+        statusBacking.isHidden = true
         for visual in playerVisuals.values { visual.container.removeFromParent() }
         for visual in enemyVisuals.values { visual.container.removeFromParent() }
         playerVisuals.removeAll()
@@ -852,8 +953,8 @@ final class BattleScene: SKScene, ObservableObject {
 
         lane.tick(deltaTime: deltaTime)
 
-        sync(units: lane.playerUnits, visuals: &playerVisuals, sideColor: .systemBlue)
-        sync(units: lane.enemyUnits, visuals: &enemyVisuals, sideColor: .systemRed)
+        sync(units: lane.playerUnits, visuals: &playerVisuals, sideColor: .systemBlue, facesRight: true)
+        sync(units: lane.enemyUnits, visuals: &enemyVisuals, sideColor: .systemRed, facesRight: false)
         updateLabels()
         checkGameOver()
         if !isGameOver, matchElapsedTime >= matchDurationSeconds {
@@ -861,7 +962,7 @@ final class BattleScene: SKScene, ObservableObject {
         }
     }
 
-    private func sync(units: [DeployedUnit], visuals: inout [UUID: UnitVisual], sideColor: SKColor) {
+    private func sync(units: [DeployedUnit], visuals: inout [UUID: UnitVisual], sideColor: SKColor, facesRight: Bool) {
         var seenIDs = Set<UUID>()
         for unit in units {
             seenIDs.insert(unit.id)
@@ -869,7 +970,7 @@ final class BattleScene: SKScene, ObservableObject {
             if let existing = visuals[unit.id] {
                 visual = existing
             } else {
-                visual = makeVisual(for: unit, sideColor: sideColor)
+                visual = makeVisual(for: unit, sideColor: sideColor, facesRight: facesRight)
                 visuals[unit.id] = visual
             }
             // Flying units render visibly higher up so "it's flying" is readable on screen, not
@@ -888,17 +989,54 @@ final class BattleScene: SKScene, ObservableObject {
     /// size now reflects BU class and the ring color reflects Era, so the two mechanics that
     /// actually differentiate units are visible on screen instead of every unit being an
     /// identical dot.
-    private func makeVisual(for unit: DeployedUnit, sideColor: SKColor) -> UnitVisual {
+    private func makeVisual(for unit: DeployedUnit, sideColor: SKColor, facesRight: Bool) -> UnitVisual {
         let container = SKNode()
         let r = radius(for: unit.definition.sizeClass)
+        // Player units face toward the enemy (right); enemy units face toward the player
+        // (left) -- matches each side's actual walk direction in `resolveCombatAndMovement`.
+        let facing: CGFloat = facesRight ? 1 : -1
+
+        let shadow = SKShapeNode(ellipseOf: CGSize(width: r * 1.6, height: r * 0.5))
+        shadow.fillColor = SKColor.black.withAlphaComponent(0.25)
+        shadow.strokeColor = .clear
+        shadow.position = CGPoint(x: 0, y: -r * 0.95)
+        shadow.zPosition = -1
+        container.addChild(shadow)
+
         let shape = SKShapeNode(circleOfRadius: r)
         shape.fillColor = sideColor
         shape.strokeColor = eraColor(for: unit.definition.era)
         shape.lineWidth = 3
         container.addChild(shape)
 
+        // A soft highlight fakes the "chunky, rounded, toy-like" shading ART_BIBLE.md §1 calls
+        // for, without needing real texture art.
+        let highlight = SKShapeNode(ellipseOf: CGSize(width: r * 0.75, height: r * 0.45))
+        highlight.fillColor = SKColor.white.withAlphaComponent(0.35)
+        highlight.strokeColor = .clear
+        highlight.position = CGPoint(x: -r * 0.3 * facing, y: r * 0.35)
+        container.addChild(highlight)
+
+        // A single big forward-facing eye -- ART_BIBLE.md §2's "big eyes read as character"
+        // rule, the cheapest possible way to make a placeholder circle look like a creature
+        // instead of a token.
+        let eyePosition = CGPoint(x: r * 0.4 * facing, y: r * 0.1)
+        let eyeWhite = SKShapeNode(circleOfRadius: max(3, r * 0.32))
+        eyeWhite.fillColor = .white
+        eyeWhite.strokeColor = .black
+        eyeWhite.lineWidth = 1
+        eyeWhite.position = eyePosition
+        container.addChild(eyeWhite)
+
+        let pupil = SKShapeNode(circleOfRadius: max(1.2, r * 0.14))
+        pupil.fillColor = .black
+        pupil.strokeColor = .clear
+        pupil.position = eyePosition
+        container.addChild(pupil)
+
         let hpLabel = SKLabelNode(fontNamed: "Menlo")
         hpLabel.fontSize = 10
+        hpLabel.fontColor = .white
         hpLabel.position = CGPoint(x: 0, y: r + 6)
         container.addChild(hpLabel)
 
@@ -982,6 +1120,7 @@ final class BattleScene: SKScene, ObservableObject {
         didPlayerWin = didWin
         statusLabel.text = message
         statusLabel.isHidden = false
+        statusBacking.isHidden = false
     }
 }
 
@@ -1081,6 +1220,17 @@ final class PlayerProfile: ObservableObject {
 
 // MARK: - SwiftUI host view
 
+/// The same sky-to-ground palette as `BattleScene.buildScenery()`, applied to every menu screen
+/// so the whole app shares one look instead of the battle scene being the only screen that
+/// isn't a plain white/black system background.
+private let roarFareBackground = LinearGradient(
+    colors: [
+        Color(red: 0.96, green: 0.85, blue: 0.62),
+        Color(red: 0.55, green: 0.72, blue: 0.52)
+    ],
+    startPoint: .top, endPoint: .bottom
+)
+
 /// Root view: owns the persistent `PlayerProfile` and the loadout, routing between the true
 /// main menu and its sub-screens. Every trip into `.battle` gets a brand-new `BattleScene` (see
 /// `BattleView`'s `@StateObject`), so leaving to the menu and battling again always starts a
@@ -1153,14 +1303,16 @@ struct MainMenuView: View {
 
             Spacer()
 
-            menuButton("CAMPAIGN", color: .green, action: onCampaign)
-            menuButton("PVP", color: .blue, action: onPvP)
-            menuButton("SUMMONS", color: .purple, action: onSummons)
-            menuButton("ENHANCE", color: .orange, action: onEnhance)
+            menuButton("🦖 CAMPAIGN", color: .green, action: onCampaign)
+            menuButton("⚔️ PVP", color: .blue, action: onPvP)
+            menuButton("🥚 SUMMONS", color: .purple, action: onSummons)
+            menuButton("⚡ ENHANCE", color: .orange, action: onEnhance)
 
             Spacer()
         }
         .padding(.horizontal, 40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(roarFareBackground.ignoresSafeArea())
     }
 
     private func menuButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
@@ -1214,6 +1366,8 @@ struct CampaignMenuView: View {
 
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(roarFareBackground.ignoresSafeArea())
         .sheet(isPresented: $showingLoadoutEditor) {
             LoadoutEditorView(loadout: $loadout, ownedUnitIDs: profile.ownedUnitIDs)
         }
@@ -1431,6 +1585,8 @@ struct SummonsView: View {
 
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(roarFareBackground.ignoresSafeArea())
     }
 }
 
@@ -1480,8 +1636,12 @@ struct EnhanceView: View {
                         .foregroundColor(affordable ? .primary : .gray)
                     }
                 }
+                .listRowBackground(Color.white.opacity(0.6))
             }
+            .scrollContentBackground(.hidden)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(roarFareBackground.ignoresSafeArea())
     }
 }
 
@@ -1506,5 +1666,7 @@ struct PvPStubView: View {
                 .padding(.horizontal, 30)
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(roarFareBackground.ignoresSafeArea())
     }
 }
