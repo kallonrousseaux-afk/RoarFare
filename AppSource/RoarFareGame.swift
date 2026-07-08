@@ -1219,41 +1219,22 @@ let bundledUnits: [UnitDefinition] = [
     )
 ]
 
-/// One tappable deploy button: a unit's base form, or one of its evolution branches.
-/// Branches deploy at the same Amber cost as the base form in this prototype -- the real
-/// design (GAME_DESIGN.md §5) evolves permanently using Evolution Catalysts, not a per-deploy
-/// currency choice; this is a simplification specific to this playable slice.
-struct DeployOption: Identifiable {
-    let id: String
-    let label: String
-    let unitIndex: Int
-    let branchID: String?
-    let cost: Int
-    let era: Era
-}
-
-let deployOptions: [DeployOption] = {
-    var options: [DeployOption] = []
-    for (index, unit) in bundledUnits.enumerated() {
-        options.append(DeployOption(id: unit.id, label: unit.name, unitIndex: index, branchID: nil, cost: unit.deployCost, era: unit.era))
-        for branch in unit.evolutionBranches {
-            options.append(DeployOption(
-                id: "\(unit.id)_\(branch.id)",
-                label: "\(unit.name) (\(branch.name))",
-                unitIndex: index,
-                branchID: branch.id,
-                cost: unit.deployCost,
-                era: unit.era
-            ))
-        }
+/// Battle Cats-style automatic evolution: a unit's Enhance level decides which form it deploys
+/// as, instead of every branch being its own deploy button (which made the old deploy bar
+/// unusably long -- 200+ buttons at 100 units). Level 5 unlocks the first evolution branch,
+/// max level unlocks the second (SSR units only, they're the ones with two branches). The real
+/// design's Evolution Catalysts (GAME_DESIGN.md §5) can replace this rule later; the milestone
+/// idea is the same, this just keys it to Enhance progress the way Battle Cats keys it to XP.
+func autoEvolutionBranchID(for unit: UnitDefinition, enhancementLevel: Int) -> String? {
+    guard !unit.evolutionBranches.isEmpty else { return nil }
+    if enhancementLevel >= PlayerProfile.maxLevel, unit.evolutionBranches.count >= 2 {
+        return unit.evolutionBranches[1].id
     }
-    return options
-}()
-
-/// The only Eras with any bundled units right now (see `GAME_DESIGN.md` §11 MVP scope) --
-/// iceAge/marine/sky are real `Era` cases but have no roster content yet, so they're
-/// deliberately left out of the deploy-tab list rather than showing an always-empty tab.
-let populatedEras: [Era] = [.triassic, .jurassic, .cretaceous]
+    if enhancementLevel >= 5 {
+        return unit.evolutionBranches[0].id
+    }
+    return nil
+}
 
 // MARK: - SpriteKit battle scene
 
@@ -1315,12 +1296,20 @@ final class BattleScene: SKScene, ObservableObject {
         baseAttackUsed = true
     }
 
+    // Which campaign stage this match is (1-based). Set once by BattleView before the scene is
+    // presented; drives enemy difficulty and the enemy base's look, and deliberately survives
+    // `reset()` so "Play Again" replays the same stage.
+    var campaignLevel: Int = 1
+
     // The enemy has its own economy now, gated the same way the player's is -- previously this
     // spawned a uniformly random unit (including the 1800-cost T. Rex) every 2 seconds with no
     // cost check at all, which made the game unwinnable regardless of player skill. Now it can
-    // only deploy what it can actually afford, accruing slightly slower than the player.
+    // only deploy what it can actually afford, and both its income and how expensive a unit it's
+    // allowed to field scale with the campaign stage: stage 1 is a slow trickle of cheap units,
+    // the final stage out-earns the player's base income and can afford the apex titans.
     private var enemyAmberAccumulator: Double = 0
-    private let enemyAmberPerSecond: Double = 10
+    private var enemyAmberPerSecond: Double { 6.0 + 1.5 * Double(campaignLevel) }
+    private var enemyMaxUnitCost: Int { 400 + campaignLevel * 180 }
     private var enemySpawnCheckTimer: Double = 0
     private let enemySpawnCheckInterval: Double = 0.5
 
@@ -1334,6 +1323,7 @@ final class BattleScene: SKScene, ObservableObject {
     private var enemyVisuals: [UUID: UnitVisual] = [:]
 
     private let amberLabel = SKLabelNode(fontNamed: "Menlo")
+    private let stageLabel = SKLabelNode(fontNamed: "Menlo")
     private let playerBaseLabel = SKLabelNode(fontNamed: "Menlo")
     private let enemyBaseLabel = SKLabelNode(fontNamed: "Menlo")
     private let statusLabel = SKLabelNode(fontNamed: "Menlo")
@@ -1341,23 +1331,36 @@ final class BattleScene: SKScene, ObservableObject {
     private let timeLabel = SKLabelNode(fontNamed: "Menlo")
     private let synergyLabel = SKLabelNode(fontNamed: "Menlo")
 
+    // Battle Cats HUD arrangement: stage name top-left, money (Amber) top-right, clock centered,
+    // and each base's HP floating directly above its own tower instead of parked in a corner.
     override func didMove(to view: SKView) {
         backgroundColor = .black
         buildScenery()
+        buildBases()
+
+        stageLabel.fontSize = 16
+        stageLabel.fontColor = .white
+        stageLabel.horizontalAlignmentMode = .left
+        stageLabel.position = CGPoint(x: 20, y: size.height - 30)
+        stageLabel.text = "Stage \(campaignLevel)"
+        addChild(stageLabel)
 
         amberLabel.fontSize = 18
-        amberLabel.horizontalAlignmentMode = .left
-        amberLabel.position = CGPoint(x: 20, y: size.height - 30)
+        amberLabel.fontColor = SKColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 1)
+        amberLabel.horizontalAlignmentMode = .right
+        amberLabel.position = CGPoint(x: size.width - 20, y: size.height - 30)
         addChild(amberLabel)
 
-        playerBaseLabel.fontSize = 18
-        playerBaseLabel.horizontalAlignmentMode = .left
-        playerBaseLabel.position = CGPoint(x: 20, y: size.height - 55)
+        playerBaseLabel.fontSize = 12
+        playerBaseLabel.fontColor = .white
+        playerBaseLabel.horizontalAlignmentMode = .center
+        playerBaseLabel.position = CGPoint(x: xPosition(for: 0), y: size.height / 2 + 68)
         addChild(playerBaseLabel)
 
-        enemyBaseLabel.fontSize = 18
-        enemyBaseLabel.horizontalAlignmentMode = .right
-        enemyBaseLabel.position = CGPoint(x: size.width - 20, y: size.height - 55)
+        enemyBaseLabel.fontSize = 12
+        enemyBaseLabel.fontColor = .white
+        enemyBaseLabel.horizontalAlignmentMode = .center
+        enemyBaseLabel.position = CGPoint(x: xPosition(for: lane.length), y: size.height / 2 + 68)
         addChild(enemyBaseLabel)
 
         timeLabel.fontSize = 18
@@ -1391,7 +1394,7 @@ final class BattleScene: SKScene, ObservableObject {
         hudBacking.position = CGPoint(x: size.width / 2, y: size.height - 30)
         hudBacking.zPosition = 5
         addChild(hudBacking)
-        [amberLabel, playerBaseLabel, enemyBaseLabel, timeLabel, synergyLabel].forEach { $0.zPosition = 6 }
+        [amberLabel, stageLabel, playerBaseLabel, enemyBaseLabel, timeLabel, synergyLabel].forEach { $0.zPosition = 6 }
     }
 
     /// Placeholder environment art -- no real illustrated backgrounds exist yet (see
@@ -1446,7 +1449,7 @@ final class BattleScene: SKScene, ObservableObject {
         // Rounded hill silhouettes (a quad curve instead of a sharp triangle) -- reads as toy-like
         // and chibi per ART_BIBLE.md §1 instead of jagged mountains.
         let hillColor = SKColor(red: 0.4, green: 0.56, blue: 0.36, alpha: 0.6)
-        for (xFraction, peakHeight, widthFraction) in [(0.15, 90.0, 0.42), (0.45, 120.0, 0.55), (0.78, 75.0, 0.4)] {
+        for (xFraction, peakHeight, widthFraction) in [(0.15, 90.0, 0.42), (0.78, 75.0, 0.4)] {
             let baseY = size.height / 2 + 10
             let centerX = size.width * CGFloat(xFraction)
             let halfWidth = size.width * CGFloat(widthFraction) / 2
@@ -1462,6 +1465,53 @@ final class BattleScene: SKScene, ObservableObject {
             hill.strokeColor = .clear
             hill.zPosition = -80
             addChild(hill)
+        }
+
+        // The one landmark that says "prehistoric" at a glance: a smoking volcano on the horizon,
+        // center-frame between the two hills. This backdrop is deliberately the SAME on every
+        // campaign stage -- only the enemy base changes per stage (see buildBases), Battle
+        // Cats-style, so stages read as different places without a whole new map each time.
+        let volcanoBaseY = size.height / 2 + 10
+        let volcanoCenterX = size.width * 0.45
+        let volcanoHalfWidth = size.width * 0.16
+        let volcanoHeight: CGFloat = 130
+        let craterHalfWidth: CGFloat = 16
+        let volcanoPath = CGMutablePath()
+        volcanoPath.move(to: CGPoint(x: volcanoCenterX - volcanoHalfWidth, y: volcanoBaseY))
+        volcanoPath.addQuadCurve(
+            to: CGPoint(x: volcanoCenterX - craterHalfWidth, y: volcanoBaseY + volcanoHeight),
+            control: CGPoint(x: volcanoCenterX - volcanoHalfWidth * 0.55, y: volcanoBaseY + volcanoHeight * 0.45)
+        )
+        volcanoPath.addLine(to: CGPoint(x: volcanoCenterX + craterHalfWidth, y: volcanoBaseY + volcanoHeight))
+        volcanoPath.addQuadCurve(
+            to: CGPoint(x: volcanoCenterX + volcanoHalfWidth, y: volcanoBaseY),
+            control: CGPoint(x: volcanoCenterX + volcanoHalfWidth * 0.55, y: volcanoBaseY + volcanoHeight * 0.45)
+        )
+        volcanoPath.closeSubpath()
+        let volcano = SKShapeNode(path: volcanoPath)
+        volcano.fillColor = SKColor(red: 0.45, green: 0.34, blue: 0.3, alpha: 0.85)
+        volcano.strokeColor = .clear
+        volcano.zPosition = -85
+        addChild(volcano)
+
+        let craterGlow = SKShapeNode(ellipseOf: CGSize(width: craterHalfWidth * 2.4, height: 10))
+        craterGlow.fillColor = SKColor(red: 1.0, green: 0.45, blue: 0.15, alpha: 0.9)
+        craterGlow.strokeColor = .clear
+        craterGlow.glowWidth = 5
+        craterGlow.position = CGPoint(x: volcanoCenterX, y: volcanoBaseY + volcanoHeight)
+        craterGlow.zPosition = -84
+        addChild(craterGlow)
+
+        for (index, puffSpec) in [(0, 10.0), (1, 7.0), (2, 5.0)].enumerated() {
+            let puff = SKShapeNode(circleOfRadius: CGFloat(puffSpec.1))
+            puff.fillColor = SKColor(white: 0.45, alpha: 0.5)
+            puff.strokeColor = .clear
+            puff.position = CGPoint(
+                x: volcanoCenterX + CGFloat(index) * 12,
+                y: volcanoBaseY + volcanoHeight + 14 + CGFloat(index) * 14
+            )
+            puff.zPosition = -86
+            addChild(puff)
         }
 
         // The ground band units actually walk along -- matches the `altitudeOffset` baseline
@@ -1482,16 +1532,154 @@ final class BattleScene: SKScene, ObservableObject {
         grassEdge.zPosition = -49
         addChild(grassEdge)
 
-        let plantColor = SKColor(red: 0.24, green: 0.44, blue: 0.22, alpha: 0.85)
-        let plantXFractions: [CGFloat] = [0.08, 0.22, 0.38, 0.62, 0.78, 0.92]
-        for xFraction in plantXFractions {
-            let plant = SKShapeNode(ellipseOf: CGSize(width: 18, height: 10))
-            plant.fillColor = plantColor
-            plant.strokeColor = .clear
-            plant.position = CGPoint(x: size.width * xFraction, y: size.height / 2 - 30)
-            plant.zPosition = -40
-            addChild(plant)
+        // Fern clusters instead of anonymous shrub blobs -- three fronds fanning out of one
+        // point reads as prehistoric undergrowth even at this tiny size.
+        let frondColor = SKColor(red: 0.24, green: 0.48, blue: 0.24, alpha: 0.9)
+        let fernXFractions: [CGFloat] = [0.08, 0.22, 0.38, 0.62, 0.78, 0.92]
+        for xFraction in fernXFractions {
+            let fern = SKNode()
+            for rotation in [-0.7, 0.0, 0.7] {
+                let frond = SKShapeNode(ellipseOf: CGSize(width: 6, height: 22))
+                frond.fillColor = frondColor
+                frond.strokeColor = .clear
+                frond.zRotation = CGFloat(rotation)
+                frond.position = CGPoint(x: CGFloat(rotation) * 9, y: 8)
+                fern.addChild(frond)
+            }
+            fern.position = CGPoint(x: size.width * xFraction, y: size.height / 2 - 32)
+            fern.zPosition = -40
+            addChild(fern)
         }
+    }
+
+    /// Battle Cats-style base towers at each lane end: the player's dino den is the same every
+    /// stage (it's YOUR base), while the enemy base cycles through four looks by stage number --
+    /// per the direction that campaign stages should read as different maps via their bases
+    /// alone, without needing a whole new background per stage yet.
+    private func buildBases() {
+        let groundY = size.height / 2 - 25
+
+        // Player base (right edge): a warm-brown dino den with a domed roof, doorway, and the
+        // one-shot bone cannon perched on top (it's the Fire Base Attack button's visual anchor).
+        let playerBase = SKNode()
+        let denBody = SKShapeNode(rectOf: CGSize(width: 54, height: 52), cornerRadius: 10)
+        denBody.fillColor = SKColor(red: 0.78, green: 0.6, blue: 0.4, alpha: 1)
+        denBody.strokeColor = SKColor(red: 0.45, green: 0.3, blue: 0.16, alpha: 1)
+        denBody.lineWidth = 3
+        denBody.position = CGPoint(x: 0, y: 26)
+        playerBase.addChild(denBody)
+
+        let denRoof = SKShapeNode(ellipseOf: CGSize(width: 62, height: 30))
+        denRoof.fillColor = SKColor(red: 0.55, green: 0.38, blue: 0.22, alpha: 1)
+        denRoof.strokeColor = SKColor(red: 0.4, green: 0.26, blue: 0.14, alpha: 1)
+        denRoof.lineWidth = 3
+        denRoof.position = CGPoint(x: 0, y: 52)
+        playerBase.addChild(denRoof)
+
+        let denDoor = SKShapeNode(rectOf: CGSize(width: 18, height: 24), cornerRadius: 8)
+        denDoor.fillColor = SKColor(red: 0.25, green: 0.16, blue: 0.1, alpha: 1)
+        denDoor.strokeColor = .clear
+        denDoor.position = CGPoint(x: 0, y: 12)
+        playerBase.addChild(denDoor)
+
+        let cannon = SKShapeNode(rectOf: CGSize(width: 22, height: 8), cornerRadius: 4)
+        cannon.fillColor = SKColor(red: 0.92, green: 0.9, blue: 0.82, alpha: 1)
+        cannon.strokeColor = SKColor(red: 0.5, green: 0.45, blue: 0.4, alpha: 1)
+        cannon.lineWidth = 2
+        cannon.zRotation = 0.35
+        cannon.position = CGPoint(x: -14, y: 66)
+        playerBase.addChild(cannon)
+
+        playerBase.position = CGPoint(x: xPosition(for: 0), y: groundY)
+        playerBase.zPosition = -30
+        addChild(playerBase)
+
+        // Enemy base (left edge), themed by stage.
+        let enemyBase = buildEnemyBaseNode(theme: (campaignLevel - 1) % 4)
+        enemyBase.position = CGPoint(x: xPosition(for: lane.length), y: groundY)
+        enemyBase.zPosition = -30
+        addChild(enemyBase)
+    }
+
+    /// The four rotating enemy base looks: 0 = egg nest, 1 = stone spire, 2 = jungle totem,
+    /// 3 = magma fort. Stage 1 starts at the nest and the cycle repeats every four stages.
+    private func buildEnemyBaseNode(theme: Int) -> SKNode {
+        let node = SKNode()
+        switch theme {
+        case 0:
+            let mound = SKShapeNode(ellipseOf: CGSize(width: 72, height: 44))
+            mound.fillColor = SKColor(red: 0.6, green: 0.45, blue: 0.28, alpha: 1)
+            mound.strokeColor = SKColor(red: 0.42, green: 0.3, blue: 0.17, alpha: 1)
+            mound.lineWidth = 3
+            mound.position = CGPoint(x: 0, y: 20)
+            node.addChild(mound)
+            for (dx, tilt) in [(-16.0, -0.2), (0.0, 0.0), (16.0, 0.2)] {
+                let egg = SKShapeNode(ellipseOf: CGSize(width: 16, height: 22))
+                egg.fillColor = SKColor(red: 0.96, green: 0.93, blue: 0.85, alpha: 1)
+                egg.strokeColor = SKColor(red: 0.6, green: 0.55, blue: 0.45, alpha: 1)
+                egg.lineWidth = 2
+                egg.zRotation = CGFloat(tilt)
+                egg.position = CGPoint(x: CGFloat(dx), y: 44)
+                node.addChild(egg)
+            }
+        case 1:
+            let spire = SKShapeNode(rectOf: CGSize(width: 44, height: 74), cornerRadius: 8)
+            spire.fillColor = SKColor(red: 0.55, green: 0.55, blue: 0.58, alpha: 1)
+            spire.strokeColor = SKColor(red: 0.35, green: 0.35, blue: 0.4, alpha: 1)
+            spire.lineWidth = 3
+            spire.position = CGPoint(x: 0, y: 37)
+            node.addChild(spire)
+            let cap = SKShapeNode(ellipseOf: CGSize(width: 52, height: 20))
+            cap.fillColor = SKColor(red: 0.42, green: 0.42, blue: 0.47, alpha: 1)
+            cap.strokeColor = .clear
+            cap.position = CGPoint(x: 0, y: 74)
+            node.addChild(cap)
+            let moss = SKShapeNode(ellipseOf: CGSize(width: 34, height: 12))
+            moss.fillColor = SKColor(red: 0.35, green: 0.55, blue: 0.3, alpha: 0.9)
+            moss.strokeColor = .clear
+            moss.position = CGPoint(x: -8, y: 8)
+            node.addChild(moss)
+        case 2:
+            let totem = SKShapeNode(rectOf: CGSize(width: 36, height: 76), cornerRadius: 6)
+            totem.fillColor = SKColor(red: 0.5, green: 0.36, blue: 0.2, alpha: 1)
+            totem.strokeColor = SKColor(red: 0.32, green: 0.22, blue: 0.12, alpha: 1)
+            totem.lineWidth = 3
+            totem.position = CGPoint(x: 0, y: 38)
+            node.addChild(totem)
+            for bandY in [24.0, 48.0] {
+                let band = SKShapeNode(rectOf: CGSize(width: 36, height: 8))
+                band.fillColor = SKColor(red: 0.3, green: 0.2, blue: 0.1, alpha: 1)
+                band.strokeColor = .clear
+                band.position = CGPoint(x: 0, y: CGFloat(bandY))
+                node.addChild(band)
+            }
+            for (dx, rot) in [(-14.0, 0.6), (14.0, -0.6), (0.0, 0.0)] {
+                let leaf = SKShapeNode(ellipseOf: CGSize(width: 30, height: 12))
+                leaf.fillColor = SKColor(red: 0.28, green: 0.55, blue: 0.28, alpha: 1)
+                leaf.strokeColor = .clear
+                leaf.zRotation = CGFloat(rot)
+                leaf.position = CGPoint(x: CGFloat(dx), y: 80)
+                node.addChild(leaf)
+            }
+        default:
+            let conePath = CGMutablePath()
+            conePath.move(to: CGPoint(x: -36, y: 0))
+            conePath.addQuadCurve(to: CGPoint(x: 0, y: 76), control: CGPoint(x: -14, y: 44))
+            conePath.addQuadCurve(to: CGPoint(x: 36, y: 0), control: CGPoint(x: 14, y: 44))
+            conePath.closeSubpath()
+            let cone = SKShapeNode(path: conePath)
+            cone.fillColor = SKColor(red: 0.3, green: 0.24, blue: 0.24, alpha: 1)
+            cone.strokeColor = SKColor(red: 0.18, green: 0.13, blue: 0.13, alpha: 1)
+            cone.lineWidth = 3
+            node.addChild(cone)
+            let glow = SKShapeNode(circleOfRadius: 10)
+            glow.fillColor = SKColor(red: 1.0, green: 0.5, blue: 0.15, alpha: 1)
+            glow.strokeColor = .clear
+            glow.glowWidth = 8
+            glow.position = CGPoint(x: 0, y: 72)
+            node.addChild(glow)
+        }
+        return node
     }
 
     private static func gradientTexture(size: CGSize, colors: [SKColor]) -> SKTexture {
@@ -1570,7 +1758,9 @@ final class BattleScene: SKScene, ObservableObject {
         enemySpawnCheckTimer += deltaTime
         if enemySpawnCheckTimer >= enemySpawnCheckInterval {
             enemySpawnCheckTimer = 0
-            let affordable = bundledUnits.filter { Double($0.deployCost) <= enemyAmberAccumulator }
+            let affordable = bundledUnits.filter {
+                $0.deployCost <= enemyMaxUnitCost && Double($0.deployCost) <= enemyAmberAccumulator
+            }
             if let pick = affordable.randomElement(), lane.deploy(pick, to: .enemy) {
                 enemyAmberAccumulator -= Double(pick.deployCost)
             }
@@ -1578,8 +1768,10 @@ final class BattleScene: SKScene, ObservableObject {
 
         lane.tick(deltaTime: deltaTime)
 
-        sync(units: lane.playerUnits, visuals: &playerVisuals, sideColor: .systemBlue, facesRight: true)
-        sync(units: lane.enemyUnits, visuals: &enemyVisuals, sideColor: .systemRed, facesRight: false)
+        // The rendering flip in xPosition(for:) means player units visually march LEFT (toward
+        // the enemy base on the left edge), so their facing flips with it.
+        sync(units: lane.playerUnits, visuals: &playerVisuals, sideColor: .systemBlue, facesRight: false)
+        sync(units: lane.enemyUnits, visuals: &enemyVisuals, sideColor: .systemRed, facesRight: true)
         updateLabels()
         checkGameOver()
         if !isGameOver, matchElapsedTime >= matchDurationSeconds {
@@ -1617,8 +1809,8 @@ final class BattleScene: SKScene, ObservableObject {
     private func makeVisual(for unit: DeployedUnit, sideColor: SKColor, facesRight: Bool) -> UnitVisual {
         let container = SKNode()
         let r = radius(for: unit.definition.sizeClass)
-        // Player units face toward the enemy (right); enemy units face toward the player
-        // (left) -- matches each side's actual walk direction in `resolveCombatAndMovement`.
+        // Each side faces its actual on-screen walk direction -- with the Battle Cats
+        // orientation flip in xPosition(for:), player units face LEFT toward the enemy base.
         let facing: CGFloat = facesRight ? 1 : -1
 
         let shadow = SKShapeNode(ellipseOf: CGSize(width: r * 1.6, height: r * 0.5))
@@ -1669,6 +1861,21 @@ final class BattleScene: SKScene, ObservableObject {
             container.addChild(dashedRing)
         }
 
+        // A stubby tail poking out the back, drawn before the body so the body overlaps its
+        // base -- the single cheapest silhouette change that makes a circle read "dinosaur."
+        let tailPath = CGMutablePath()
+        tailPath.move(to: CGPoint(x: -r * 0.85 * facing, y: r * 0.2))
+        tailPath.addQuadCurve(
+            to: CGPoint(x: -r * 0.8 * facing, y: -r * 0.25),
+            control: CGPoint(x: -r * 1.6 * facing, y: r * 0.35)
+        )
+        tailPath.closeSubpath()
+        let tail = SKShapeNode(path: tailPath)
+        tail.fillColor = sideColor
+        tail.strokeColor = eraColor(for: unit.definition.era)
+        tail.lineWidth = 2
+        container.addChild(tail)
+
         let shape = SKShapeNode(circleOfRadius: r)
         shape.fillColor = sideColor
         shape.strokeColor = eraColor(for: unit.definition.era)
@@ -1682,6 +1889,30 @@ final class BattleScene: SKScene, ObservableObject {
         highlight.strokeColor = .clear
         highlight.position = CGPoint(x: -r * 0.3 * facing, y: r * 0.35)
         container.addChild(highlight)
+
+        // Pale belly patch low on the front half -- the classic cartoon-dino two-tone.
+        let belly = SKShapeNode(ellipseOf: CGSize(width: r * 0.95, height: r * 0.6))
+        belly.fillColor = SKColor.white.withAlphaComponent(0.3)
+        belly.strokeColor = .clear
+        belly.position = CGPoint(x: r * 0.15 * facing, y: -r * 0.35)
+        container.addChild(belly)
+
+        // A snout bump on the leading edge so the body has a face direction even before the eye.
+        let snout = SKShapeNode(ellipseOf: CGSize(width: r * 0.7, height: r * 0.5))
+        snout.fillColor = sideColor
+        snout.strokeColor = eraColor(for: unit.definition.era)
+        snout.lineWidth = 2
+        snout.position = CGPoint(x: r * 0.85 * facing, y: -r * 0.1)
+        container.addChild(snout)
+
+        // Two little feet nubs under the body.
+        for footX in [-r * 0.35, r * 0.35] {
+            let foot = SKShapeNode(ellipseOf: CGSize(width: r * 0.45, height: r * 0.28))
+            foot.fillColor = SKColor.black.withAlphaComponent(0.3)
+            foot.strokeColor = .clear
+            foot.position = CGPoint(x: footX, y: -r * 0.9)
+            container.addChild(foot)
+        }
 
         // A single big forward-facing eye -- ART_BIBLE.md §2's "big eyes read as character"
         // rule, the cheapest possible way to make a placeholder circle look like a creature
@@ -1742,18 +1973,22 @@ final class BattleScene: SKScene, ObservableObject {
         }
     }
 
+    /// Battle Cats orientation: the player's base sits on the RIGHT edge and units march left
+    /// toward the enemy base -- lane position 0 (the player's spawn) maps to the right side.
+    /// This is purely a rendering flip; the simulation still runs 0 -> length internally.
     private func xPosition(for lanePosition: Double) -> CGFloat {
         let margin: CGFloat = 40
         let usableWidth = size.width - margin * 2
         let fraction = CGFloat(lanePosition / lane.length)
-        return margin + usableWidth * fraction
+        return size.width - margin - usableWidth * fraction
     }
 
     private func updateLabels() {
         let multiplierTag = isInDoubleAmberPhase ? " (2x)" : ""
-        amberLabel.text = "Amber: \(amber)\(multiplierTag)"
-        playerBaseLabel.text = "Base: \(max(0, lane.playerBaseHP))"
-        enemyBaseLabel.text = "Enemy Base: \(max(0, lane.enemyBaseHP))"
+        amberLabel.text = "Amber \(amber)\(multiplierTag)"
+        // Battle Cats-style "current/max" HP readouts floating above each base tower.
+        playerBaseLabel.text = "\(max(0, lane.playerBaseHP))/\(startingBaseHP)"
+        enemyBaseLabel.text = "\(max(0, lane.enemyBaseHP))/\(startingBaseHP)"
         let remaining = max(0, Int((matchDurationSeconds - matchElapsedTime).rounded(.up)))
         timeLabel.text = String(format: "Time: %d:%02d", remaining / 60, remaining % 60)
 
@@ -1813,6 +2048,9 @@ final class PlayerProfile: ObservableObject {
     private static let levelsKey = "roarfare.unitLevels"
     private static let battlesWonKey = "roarfare.battlesWon"
     private static let achievementsKey = "roarfare.unlockedAchievements"
+    private static let campaignKey = "roarfare.highestCampaignLevel"
+
+    static let campaignLevelCount = 12
 
     static let startingFossils = 500
     static let startingEggs = 300
@@ -1850,6 +2088,9 @@ final class PlayerProfile: ObservableObject {
     @Published private(set) var unlockedAchievementIDs: Set<String> {
         didSet { UserDefaults.standard.set(Array(unlockedAchievementIDs), forKey: Self.achievementsKey) }
     }
+    @Published private(set) var highestCampaignLevel: Int {
+        didSet { UserDefaults.standard.set(highestCampaignLevel, forKey: Self.campaignKey) }
+    }
 
     init() {
         let defaults = UserDefaults.standard
@@ -1864,6 +2105,8 @@ final class PlayerProfile: ObservableObject {
         }
         unitLevels = defaults.dictionary(forKey: Self.levelsKey) as? [String: Int] ?? [:]
         battlesWon = defaults.integer(forKey: Self.battlesWonKey)
+        // integer(forKey:) returns 0 when unset; stage 1 is always available.
+        highestCampaignLevel = max(1, defaults.integer(forKey: Self.campaignKey))
         if let savedAchievements = defaults.array(forKey: Self.achievementsKey) as? [String] {
             unlockedAchievementIDs = Set(savedAchievements)
         } else {
@@ -1963,10 +2206,22 @@ final class PlayerProfile: ObservableObject {
         return .legendary
     }
 
-    func rewardForMatch(didWin: Bool) {
+    /// Later stages pay meaningfully better on a win (+15 Fossils per stage past the first), so
+    /// replaying stage 1 forever is never the best farm once you can clear something harder.
+    /// A loss pays the same small consolation everywhere.
+    func rewardForMatch(didWin: Bool, campaignLevel: Int = 1) {
         if didWin { battlesWon += 1 }
-        fossils += didWin ? Self.battleWinReward : Self.battleLossReward
+        fossils += didWin
+            ? Self.battleWinReward + (campaignLevel - 1) * 15
+            : Self.battleLossReward
         checkAchievements()
+    }
+
+    /// Beating your current frontier stage unlocks the next one; replaying an earlier stage
+    /// never moves the frontier backward (or forward -- you already earned past it).
+    func unlockNextCampaignLevel(after level: Int) {
+        guard level >= highestCampaignLevel, level < Self.campaignLevelCount else { return }
+        highestCampaignLevel = level + 1
     }
 
     /// PvP has no real matchmaking backend yet (see `docs/ROADMAP.md` Phase 7), so
@@ -2006,7 +2261,9 @@ struct Achievement: Identifiable {
         Achievement(id: "collector_50", name: "Curator", description: "Own 50 dinosaurs.", eggReward: 35) { $0.ownedUnitIDs.count >= 50 },
         Achievement(id: "full_roster", name: "Completionist", description: "Own every dinosaur.", eggReward: 75) { $0.ownedUnitIDs.count >= bundledUnits.count },
         Achievement(id: "enhancer_5", name: "Enhancer", description: "Enhance any dinosaur to level 5.", eggReward: 20) { profile in profile.unitLevels.values.contains { $0 >= 5 } },
-        Achievement(id: "enhancer_max", name: "Perfectionist", description: "Enhance any dinosaur to max level.", eggReward: 40) { profile in profile.unitLevels.values.contains { $0 >= PlayerProfile.maxLevel } }
+        Achievement(id: "enhancer_max", name: "Perfectionist", description: "Enhance any dinosaur to max level.", eggReward: 40) { profile in profile.unitLevels.values.contains { $0 >= PlayerProfile.maxLevel } },
+        Achievement(id: "campaign_6", name: "Trailblazer", description: "Reach Campaign Stage 6.", eggReward: 15) { $0.highestCampaignLevel >= 6 },
+        Achievement(id: "campaign_12", name: "Apex of the Era", description: "Reach the final Campaign Stage.", eggReward: 50) { $0.highestCampaignLevel >= PlayerProfile.campaignLevelCount }
     ]
 }
 
@@ -2054,7 +2311,8 @@ private extension View {
 /// clean match.
 struct RoarFareContentView: View {
     private enum AppScreen {
-        case mainMenu, campaignMenu, battle, pvp, summons, enhance, achievements
+        case mainMenu, campaignMenu, pvp, summons, enhance, achievements
+        case battle(level: Int)
     }
 
     // Battle Cats-style loadout: you own the whole roster, but only bring `loadoutCap` units
@@ -2081,10 +2339,11 @@ struct RoarFareContentView: View {
         case .campaignMenu:
             CampaignMenuView(
                 profile: profile, loadout: $loadout,
-                onBattle: { screen = .battle }, onHome: { screen = .mainMenu }
+                onBattle: { level in screen = .battle(level: level) },
+                onHome: { screen = .mainMenu }
             )
-        case .battle:
-            BattleView(profile: profile, loadout: loadout, onExit: { screen = .mainMenu })
+        case .battle(let level):
+            BattleView(profile: profile, loadout: loadout, level: level, onExit: { screen = .mainMenu })
         case .pvp:
             PvPStubView(profile: profile, onHome: { screen = .mainMenu })
         case .summons:
@@ -2111,18 +2370,27 @@ struct MainMenuView: View {
 
     var body: some View {
         VStack(spacing: 14) {
+            // Battle Cats "Cat Base" top bar: title on the left, currency counters pinned
+            // top-right in their own chips.
+            HStack(alignment: .firstTextBaseline) {
+                Text("Dino Den")
+                    .font(.system(size: 26, weight: .heavy, design: .rounded))
+                    .foregroundColor(Color(red: 0.35, green: 0.22, blue: 0.1))
+                Spacer()
+                currencyChip("🦴 \(profile.fossils)", tint: .orange)
+                currencyChip("🥚 \(profile.eggs)", tint: .pink)
+            }
+            .padding(.top, 8)
+
             Spacer()
 
             Text("RoarFare")
-                .font(.system(size: 44, weight: .heavy, design: .rounded))
+                .font(.system(size: 46, weight: .heavy, design: .rounded))
+                .foregroundColor(Color(red: 0.3, green: 0.2, blue: 0.08))
+                .shadow(color: .white.opacity(0.6), radius: 0, x: 0, y: 2)
             Text("A Dinosaur Lane Battler")
                 .font(.headline)
                 .foregroundColor(.secondary)
-            HStack(spacing: 18) {
-                Text("🦴 \(profile.fossils)").foregroundColor(.orange)
-                Text("🥚 \(profile.eggs)").foregroundColor(.pink)
-            }
-            .font(.subheadline.bold())
 
             Spacer()
 
@@ -2134,9 +2402,19 @@ struct MainMenuView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 40)
+        .padding(.horizontal, 32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(roarFareBackground.ignoresSafeArea())
+    }
+
+    private func currencyChip(_ text: String, tint: Color) -> some View {
+        Text(text)
+            .font(.subheadline.bold())
+            .foregroundColor(tint)
+            .padding(.vertical, 4)
+            .padding(.horizontal, 10)
+            .background(Color.black.opacity(0.55))
+            .cornerRadius(12)
     }
 
     private func menuButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
@@ -2145,40 +2423,84 @@ struct MainMenuView: View {
     }
 }
 
-/// The Campaign sub-menu: loadout summary/editor and the "BATTLE" call to action -- this is the
-/// old root main menu's content, now one level down from the true home screen.
+/// Stage-select screen: 12 campaign stages in a grid, unlocked one at a time by beating the
+/// previous one (Battle Cats chapter-map style, minus the world map art for now). Each stage is
+/// a real difficulty step -- the enemy earns Amber faster and can afford bigger dinosaurs -- and
+/// gets its own enemy base design in the battle scene.
 struct CampaignMenuView: View {
     @ObservedObject var profile: PlayerProfile
     @Binding var loadout: Set<String>
-    let onBattle: () -> Void
+    let onBattle: (Int) -> Void
     let onHome: () -> Void
     @State private var showingLoadoutEditor = false
 
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
+
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 14) {
             HStack {
                 Button("← Home") { onHome() }
                 Spacer()
+                Text("🦴 \(profile.fossils)").foregroundColor(.orange).font(.subheadline.bold())
             }
             .padding(.horizontal)
 
-            Spacer()
             Text("Campaign").font(.system(size: 34, weight: .heavy, design: .rounded))
-            Spacer()
+            Text("Beat a stage to unlock the next. Tougher rivals, bigger rewards.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(1...PlayerProfile.campaignLevelCount, id: \.self) { level in
+                    let unlocked = level <= profile.highestCampaignLevel
+                    Button {
+                        onBattle(level)
+                    } label: {
+                        VStack(spacing: 3) {
+                            Text(unlocked ? "🦖" : "🔒").font(.title3)
+                            Text("Stage \(level)").font(.caption.bold())
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(
+                            LinearGradient(
+                                colors: unlocked
+                                    ? [Color.green, Color.green.opacity(0.65)]
+                                    : [Color.gray.opacity(0.6), Color.gray.opacity(0.4)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.35), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
+                    }
+                    .foregroundColor(.white)
+                    .disabled(!unlocked || loadout.isEmpty)
+                }
+            }
+            .padding(.horizontal, 20)
 
             Button("Edit Loadout (\(loadout.count)/\(RoarFareContentView.loadoutCap))") {
                 showingLoadoutEditor = true
             }
-            .padding(10)
-            .background(Color.purple.opacity(0.3))
-            .cornerRadius(10)
+            .font(.subheadline.bold())
+            .foregroundColor(.white)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 22)
+            .background(
+                LinearGradient(colors: [Color.purple, Color.purple.opacity(0.7)], startPoint: .top, endPoint: .bottom)
+            )
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.2), radius: 3, x: 0, y: 2)
 
-            Button("BATTLE") {
-                onBattle()
+            if loadout.isEmpty {
+                Text("Equip at least one dinosaur to battle.")
+                    .font(.caption)
+                    .foregroundColor(.red)
             }
-            .gameButtonStyle(color: .green, disabled: loadout.isEmpty)
-            .disabled(loadout.isEmpty)
-            .padding(.horizontal, 40)
 
             Spacer()
         }
@@ -2190,31 +2512,44 @@ struct CampaignMenuView: View {
     }
 }
 
-/// The actual match screen -- SpriteKit battle scene plus the deploy/upgrade/attack HUD. Takes
-/// `loadout` as a plain (non-binding) value on purpose: the loadout you brought into a battle
-/// shouldn't change mid-fight, only back on the main menu between matches. Deploys now carry
-/// each unit's current Enhance level from `profile`, and a match's end grants a Fossil reward
-/// exactly once via `onChange(of: scene.isGameOver)`.
+/// The actual match screen, laid out Battle Cats-style: the scene up top (bases at each end,
+/// HP over each tower), and the 10 equipped dinosaurs as tap-to-deploy cards sitting on a brown
+/// "dirt band" at the bottom, two rows of five. One card per equipped unit -- which form it
+/// deploys as (base or an evolution) is decided automatically by its Enhance level via
+/// `autoEvolutionBranchID`, the way Battle Cats evolves units at level milestones, instead of
+/// the old wall of one-button-per-branch. Takes `loadout` as a plain value on purpose: the
+/// loadout you brought into a battle shouldn't change mid-fight.
 struct BattleView: View {
     @ObservedObject var profile: PlayerProfile
     let loadout: Set<String>
+    let level: Int
     let onExit: () -> Void
 
-    @StateObject private var scene: BattleScene = {
-        let scene = BattleScene(size: CGSize(width: 400, height: 300))
-        scene.scaleMode = .resizeFill
-        return scene
-    }()
+    @StateObject private var scene: BattleScene
 
-    // Era tab selection exists because deployOptions crossed 200 entries once the roster
-    // expanded to 100 units -- a single flat scrolling list of every unit and every branch
-    // stopped being usable mid-battle, so it's now split per-Era the same way the game's
-    // core Era identity signal already works everywhere else (see ART_BIBLE.md §3.1).
-    @State private var selectedEra: Era = .triassic
-
-    private var visibleOptions: [DeployOption] {
-        deployOptions.filter { $0.era == selectedEra && loadout.contains(bundledUnits[$0.unitIndex].id) }
+    init(profile: PlayerProfile, loadout: Set<String>, level: Int, onExit: @escaping () -> Void) {
+        self.profile = profile
+        self.loadout = loadout
+        self.level = level
+        self.onExit = onExit
+        // StateObject's autoclosure runs exactly once per BattleView identity, so the stage
+        // number is baked into the scene before SpriteKit ever presents it.
+        _scene = StateObject(wrappedValue: {
+            let scene = BattleScene(size: CGSize(width: 400, height: 300))
+            scene.scaleMode = .resizeFill
+            scene.campaignLevel = level
+            return scene
+        }())
     }
+
+    private var equippedUnits: [(index: Int, unit: UnitDefinition)] {
+        bundledUnits.enumerated()
+            .filter { loadout.contains($0.element.id) }
+            .map { (index: $0.offset, unit: $0.element) }
+    }
+
+    private let cardColumns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 5)
+    private let dirtBrown = Color(red: 0.45, green: 0.32, blue: 0.18)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -2222,83 +2557,156 @@ struct BattleView: View {
                 Button("← Home") { onExit() }
                     .padding(8)
                 Spacer()
+                Text("Stage \(level)").font(.subheadline.bold()).padding(.trailing, 12)
             }
 
             SpriteView(scene: scene)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            if scene.isGameOver {
-                HStack {
-                    Button("Play Again") {
-                        scene.reset()
-                    }
-                    .padding(8)
-                    .background(Color.green.opacity(0.3))
-                    .cornerRadius(8)
+            // The Battle Cats bottom band: match controls on one row, unit cards below, all on
+            // dirt brown so the scene's ground visually continues into the HUD.
+            VStack(spacing: 8) {
+                if scene.isGameOver {
+                    HStack(spacing: 10) {
+                        Button("Play Again") { scene.reset() }
+                            .font(.subheadline.bold())
+                            .foregroundColor(.white)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 18)
+                            .background(Color.green.opacity(0.85))
+                            .cornerRadius(10)
 
-                    Button("Home") {
-                        onExit()
+                        Button("Home") { onExit() }
+                            .font(.subheadline.bold())
+                            .foregroundColor(.white)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 18)
+                            .background(Color.gray.opacity(0.85))
+                            .cornerRadius(10)
                     }
-                    .padding(8)
-                    .background(Color.gray.opacity(0.3))
-                    .cornerRadius(8)
-                }
-                .padding(.top, 8)
-            } else {
-                let upgradeAffordable = scene.baseUpgradeCost <= scene.amber
-                HStack {
-                    Button("Upgrade Base (Lvl \(scene.baseLevel)) — \(scene.baseUpgradeCost) Amber") {
-                        scene.upgradeBase()
-                    }
-                    .padding(8)
-                    .background((upgradeAffordable ? Color.orange : Color.gray).opacity(0.3))
-                    .cornerRadius(8)
-                    .disabled(!upgradeAffordable)
-
-                    Button(scene.baseAttackUsed ? "Base Attack Used" : "Fire Base Attack") {
-                        scene.fireBaseAttack()
-                    }
-                    .padding(8)
-                    .background((scene.baseAttackUsed ? Color.gray : Color.red).opacity(0.3))
-                    .cornerRadius(8)
-                    .disabled(scene.baseAttackUsed)
-                }
-                .padding(.top, 8)
-            }
-
-            Picker("Era", selection: $selectedEra) {
-                ForEach(populatedEras, id: \.self) { era in
-                    Text(era.displayName).tag(era)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.top, 8)
-
-            ScrollView(.horizontal) {
-                HStack {
-                    ForEach(visibleOptions) { option in
-                        let affordable = option.cost <= scene.amber
-                        Button(option.label) {
-                            let unitID = bundledUnits[option.unitIndex].id
-                            scene.deployPlayerUnit(
-                                unitIndex: option.unitIndex, branchID: option.branchID,
-                                enhancementLevel: profile.level(for: unitID)
-                            )
+                } else {
+                    let upgradeAffordable = scene.baseUpgradeCost <= scene.amber
+                    HStack(spacing: 10) {
+                        Button("⛏ Base Lv\(scene.baseLevel) · \(scene.baseUpgradeCost)") {
+                            scene.upgradeBase()
                         }
-                        .padding(8)
-                        .background((affordable ? Color.blue : Color.gray).opacity(0.3))
-                        .cornerRadius(8)
-                        .disabled(!affordable)
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                        .padding(.vertical, 7)
+                        .padding(.horizontal, 12)
+                        .background((upgradeAffordable ? Color.orange : Color.gray).opacity(0.9))
+                        .cornerRadius(10)
+                        .disabled(!upgradeAffordable)
+
+                        Spacer()
+
+                        Button(scene.baseAttackUsed ? "💥 Used" : "💥 Bone Cannon") {
+                            scene.fireBaseAttack()
+                        }
+                        .font(.caption.bold())
+                        .foregroundColor(.white)
+                        .padding(.vertical, 7)
+                        .padding(.horizontal, 12)
+                        .background((scene.baseAttackUsed ? Color.gray : Color.red).opacity(0.9))
+                        .cornerRadius(10)
+                        .disabled(scene.baseAttackUsed)
                     }
                 }
-                .padding()
+
+                LazyVGrid(columns: cardColumns, spacing: 6) {
+                    ForEach(equippedUnits, id: \.unit.id) { entry in
+                        deployCard(for: entry.unit, atIndex: entry.index)
+                    }
+                }
             }
+            .padding(10)
+            .background(dirtBrown)
         }
         .onChange(of: scene.isGameOver) { isOver in
             guard isOver else { return }
-            profile.rewardForMatch(didWin: scene.didPlayerWin == true)
+            let won = scene.didPlayerWin == true
+            profile.rewardForMatch(didWin: won, campaignLevel: level)
+            if won { profile.unlockNextCampaignLevel(after: level) }
         }
+    }
+
+    private func deployCard(for unit: UnitDefinition, atIndex index: Int) -> some View {
+        let enhanceLevel = profile.level(for: unit.id)
+        let branchID = autoEvolutionBranchID(for: unit, enhancementLevel: enhanceLevel)
+        let affordable = unit.deployCost <= scene.amber && !scene.isGameOver
+
+        return Button {
+            scene.deployPlayerUnit(unitIndex: index, branchID: branchID, enhancementLevel: enhanceLevel)
+        } label: {
+            VStack(spacing: 2) {
+                ZStack {
+                    Circle()
+                        .fill(eraCardColor(for: unit.era))
+                        .frame(width: 26, height: 26)
+                    Circle().fill(Color.white).frame(width: 8, height: 8).offset(x: 5, y: -3)
+                    Circle().fill(Color.black).frame(width: 4, height: 4).offset(x: 5, y: -3)
+                }
+                Text(unit.name)
+                    .font(.system(size: 9, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .foregroundColor(affordable ? .black : .white.opacity(0.7))
+                Text("\(unit.deployCost)")
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundColor(affordable ? Color(red: 0.75, green: 0.5, blue: 0.05) : .gray)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 5)
+            .background(affordable ? Color(red: 0.97, green: 0.93, blue: 0.8) : Color.black.opacity(0.35))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(rarityCardColor(for: unit.rarity), lineWidth: unit.rarity == .legendary ? 2 : 1.2)
+            )
+            .overlay(alignment: .topTrailing) {
+                if branchID != nil {
+                    Text("✦")
+                        .font(.system(size: 9))
+                        .foregroundColor(.orange)
+                        .padding(2)
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if enhanceLevel > 1 {
+                    Text("Lv\(enhanceLevel)")
+                        .font(.system(size: 7, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 1)
+                        .background(Color.blue.opacity(0.8))
+                        .cornerRadius(4)
+                        .padding(2)
+                }
+            }
+        }
+        .disabled(!affordable)
+    }
+}
+
+/// SwiftUI-side mirrors of the scene's era/rarity color language, so the deploy cards speak the
+/// same visual dialect as the units they spawn.
+private func eraCardColor(for era: Era) -> Color {
+    switch era {
+    case .triassic: return .orange
+    case .jurassic: return .green
+    case .cretaceous: return .teal
+    case .iceAge: return Color(white: 0.9)
+    case .marine: return .blue
+    case .sky: return .purple
+    }
+}
+
+private func rarityCardColor(for rarity: Rarity) -> Color {
+    switch rarity {
+    case .common: return Color.black.opacity(0.25)
+    case .rare: return .blue
+    case .epic: return .purple
+    case .legendary: return .yellow
     }
 }
 
