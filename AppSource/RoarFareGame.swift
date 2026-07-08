@@ -322,13 +322,18 @@ final class Lane {
         enemyUnits.removeAll { !$0.isAlive }
     }
 
-    /// Direct base-HP damage, bypassing units/lane position entirely -- backs the one-shot
-    /// manual base attack (`BattleScene.fireBaseAttack`), Battle Cats' Cat Cannon equivalent.
-    func dealDamageToBase(_ amount: Int, of side: Side) {
+    /// Field-wide burst damage to every alive unit on one side -- backs the one-shot Bone
+    /// Cannon (`BattleScene.fireBaseAttack`), matching how Battle Cats' Cat Cannon works: it
+    /// clears/etches the enemy's ARMY, it never damages the enemy base itself. Great against a
+    /// swarm of cheap units, nearly wasted on a single high-HP tank -- a real timing decision.
+    func damageAllUnits(_ amount: Int, of side: Side) {
         switch side {
-        case .player: playerBaseHP -= amount
-        case .enemy: enemyBaseHP -= amount
+        case .player:
+            for i in playerUnits.indices { playerUnits[i].currentHP -= amount }
+        case .enemy:
+            for i in enemyUnits.indices { enemyUnits[i].currentHP -= amount }
         }
+        clearDefeatedUnits()
     }
 
     func tick(deltaTime: Double) {
@@ -1284,15 +1289,16 @@ final class BattleScene: SKScene, ObservableObject {
         baseLevel += 1
     }
 
-    // A manual, one-shot base attack -- Battle Cats' Cat Cannon equivalent. Free (no Amber
-    // cost), but usable exactly once per match, so it's a save-it-for-the-right-moment tool
-    // rather than another thing to spend income on.
+    // The one-shot Bone Cannon -- Battle Cats' Cat Cannon equivalent. Free (no Amber cost),
+    // usable exactly once per match, and it hits every enemy UNIT on the field for flat damage;
+    // it never touches the enemy base (bases can only be hurt by units walking up and attacking
+    // them). Devastating against a swarm, nearly wasted on one big tank -- save it well.
     @Published private(set) var baseAttackUsed = false
     private let baseAttackDamage = 300
 
     func fireBaseAttack() {
         guard !isGameOver, !baseAttackUsed else { return }
-        lane.dealDamageToBase(baseAttackDamage, of: .enemy)
+        lane.damageAllUnits(baseAttackDamage, of: .enemy)
         baseAttackUsed = true
     }
 
@@ -1834,6 +1840,30 @@ final class BattleScene: SKScene, ObservableObject {
             container.addChild(glow)
         }
 
+        // Real-art drop-in hook: if an illustrated sprite named "unit_<species id>" exists in
+        // the app's asset catalog, use it and skip all the procedural body drawing below. This
+        // is the whole character-art pipeline from the code side -- when illustrated art gets
+        // generated and added to Assets.xcassets (art convention: character faces RIGHT), every
+        // matching unit upgrades automatically with zero code changes, and any unit still
+        // missing art keeps its procedural chibi body.
+        if let artImage = UIImage(named: "unit_\(unit.definition.id)") {
+            let sprite = SKSpriteNode(texture: SKTexture(image: artImage))
+            let targetHeight = r * 2.6
+            let aspect = artImage.size.height > 0 ? artImage.size.width / artImage.size.height : 1
+            sprite.size = CGSize(width: targetHeight * aspect, height: targetHeight)
+            sprite.xScale = facesRight ? abs(sprite.xScale) : -abs(sprite.xScale)
+            container.addChild(sprite)
+
+            let artHPLabel = SKLabelNode(fontNamed: "Menlo")
+            artHPLabel.fontSize = 10
+            artHPLabel.fontColor = .white
+            artHPLabel.position = CGPoint(x: 0, y: targetHeight / 2 + 6)
+            container.addChild(artHPLabel)
+
+            addChild(container)
+            return UnitVisual(container: container, hpLabel: artHPLabel)
+        }
+
         // A soft translucent ring for ranged attackers and a pair of stylized wings for flying
         // ones -- the only visual cues those traits get without real illustrated art, so melee-
         // can't-hit-flying and ranged-only-attacks read as visibly different silhouettes.
@@ -2280,6 +2310,163 @@ private let roarFareBackground = LinearGradient(
     startPoint: .top, endPoint: .bottom
 )
 
+/// The two currencies' shared icon language -- SF Symbols, not emoji (art direction rule: no
+/// emoji anywhere in the app). `fossil.shell.fill` IS the Fossils currency, and the portrait
+/// oval reads as an egg for the Summons currency.
+enum CurrencyIcon {
+    static let fossils = "fossil.shell.fill"
+    static let eggs = "oval.portrait.fill"
+}
+
+/// One consistent currency readout used on every screen's header: icon + amount in a dark chip.
+struct CurrencyChip: View {
+    let systemImage: String
+    let value: Int
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage).font(.caption)
+            Text("\(value)").font(.subheadline.bold())
+        }
+        .foregroundColor(tint)
+        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .background(Color.black.opacity(0.55))
+        .cornerRadius(12)
+    }
+}
+
+/// The main menu's mascot: a big friendly chibi dino built from pure SwiftUI shapes, following
+/// the same construction rules as the in-battle sprites (round body, big forward eye, structured
+/// snout and brow, NO mouth line -- see docs/ART_BIBLE.md's face rule). Placeholder for a real
+/// illustrated key-art character, but it makes the front page a character screen instead of a
+/// wall of buttons.
+struct MenuMascotView: View {
+    var body: some View {
+        ZStack {
+            // Ground shadow.
+            Ellipse()
+                .fill(Color.black.opacity(0.18))
+                .frame(width: 120, height: 24)
+                .offset(y: 62)
+
+            // Tail: a rotated teardrop poking out the left, drawn first so the body overlaps it.
+            Capsule()
+                .fill(Color(red: 0.36, green: 0.6, blue: 0.36))
+                .frame(width: 64, height: 26)
+                .rotationEffect(.degrees(32))
+                .offset(x: -52, y: 28)
+
+            // Back spikes along the top-left of the body.
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .trim(from: 0, to: 0.5)
+                    .fill(Color(red: 0.28, green: 0.48, blue: 0.3))
+                    .frame(width: 26, height: 26)
+                    .rotationEffect(.degrees(Double(index) * 24 - 62))
+                    .offset(
+                        x: -30 + CGFloat(index) * 20,
+                        y: -52 + CGFloat(index) * -4 + CGFloat(index * index) * 3
+                    )
+            }
+
+            // Body.
+            Circle()
+                .fill(Color(red: 0.42, green: 0.68, blue: 0.42))
+                .frame(width: 116, height: 116)
+                .overlay(Circle().stroke(Color(red: 0.24, green: 0.42, blue: 0.26), lineWidth: 4))
+
+            // Belly patch.
+            Ellipse()
+                .fill(Color(red: 0.93, green: 0.9, blue: 0.75))
+                .frame(width: 62, height: 48)
+                .offset(x: 10, y: 28)
+
+            // Snout bump on the leading (right) edge, with a nostril dot -- structure instead
+            // of a mouth, per the Art Bible's face rule.
+            Ellipse()
+                .fill(Color(red: 0.42, green: 0.68, blue: 0.42))
+                .frame(width: 44, height: 32)
+                .overlay(Ellipse().stroke(Color(red: 0.24, green: 0.42, blue: 0.26), lineWidth: 3))
+                .offset(x: 46, y: 8)
+            Circle()
+                .fill(Color(red: 0.24, green: 0.42, blue: 0.26))
+                .frame(width: 5, height: 5)
+                .offset(x: 58, y: 4)
+
+            // Brow + big forward-facing eye with a glint.
+            Capsule()
+                .fill(Color(red: 0.24, green: 0.42, blue: 0.26))
+                .frame(width: 24, height: 7)
+                .rotationEffect(.degrees(-12))
+                .offset(x: 22, y: -30)
+            Circle().fill(Color.white).frame(width: 34, height: 34).offset(x: 22, y: -12)
+            Circle().fill(Color.black).frame(width: 16, height: 16).offset(x: 26, y: -12)
+            Circle().fill(Color.white).frame(width: 6, height: 6).offset(x: 30, y: -16)
+
+            // Feet.
+            Capsule().fill(Color(red: 0.3, green: 0.5, blue: 0.32)).frame(width: 30, height: 16).offset(x: -22, y: 56)
+            Capsule().fill(Color(red: 0.3, green: 0.5, blue: 0.32)).frame(width: 30, height: 16).offset(x: 24, y: 56)
+        }
+        .frame(width: 190, height: 150)
+    }
+}
+
+/// Scenery behind the main menu so the front page is a place, not a flat gradient: sun, soft
+/// hills, a distant volcano (the same landmark the battle backdrop uses), and a ground band the
+/// mascot stands on. Pure shapes, zero assets.
+struct MenuBackdropView: View {
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                roarFareBackground
+
+                Circle()
+                    .fill(Color(red: 1.0, green: 0.9, blue: 0.6))
+                    .frame(width: 74, height: 74)
+                    .blur(radius: 6)
+                    .position(x: geo.size.width * 0.82, y: geo.size.height * 0.1)
+
+                // Distant volcano, echoing the battle scene's landmark.
+                Triangle()
+                    .fill(Color(red: 0.45, green: 0.34, blue: 0.3).opacity(0.55))
+                    .frame(width: geo.size.width * 0.5, height: 130)
+                    .position(x: geo.size.width * 0.3, y: geo.size.height * 0.62)
+
+                // Rolling hills.
+                Ellipse()
+                    .fill(Color(red: 0.4, green: 0.56, blue: 0.36).opacity(0.7))
+                    .frame(width: geo.size.width * 1.3, height: 160)
+                    .position(x: geo.size.width * 0.15, y: geo.size.height * 0.78)
+                Ellipse()
+                    .fill(Color(red: 0.35, green: 0.52, blue: 0.32).opacity(0.8))
+                    .frame(width: geo.size.width * 1.4, height: 150)
+                    .position(x: geo.size.width * 0.9, y: geo.size.height * 0.84)
+
+                // Ground band at the very bottom.
+                Rectangle()
+                    .fill(Color(red: 0.48, green: 0.37, blue: 0.22))
+                    .frame(height: geo.size.height * 0.16)
+                    .position(x: geo.size.width / 2, y: geo.size.height * 0.95)
+            }
+        }
+        .ignoresSafeArea()
+    }
+}
+
+/// Minimal triangle shape for the backdrop volcano.
+struct Triangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
 private extension View {
     /// The app's one shared "big call-to-action" button look: gradient fill, bold white text,
     /// rounded corners, a light border, and a drop shadow. Replaces the flat
@@ -2369,7 +2556,7 @@ struct MainMenuView: View {
     let onAchievements: () -> Void
 
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             // Battle Cats "Cat Base" top bar: title on the left, currency counters pinned
             // top-right in their own chips.
             HStack(alignment: .firstTextBaseline) {
@@ -2377,12 +2564,12 @@ struct MainMenuView: View {
                     .font(.system(size: 26, weight: .heavy, design: .rounded))
                     .foregroundColor(Color(red: 0.35, green: 0.22, blue: 0.1))
                 Spacer()
-                currencyChip("🦴 \(profile.fossils)", tint: .orange)
-                currencyChip("🥚 \(profile.eggs)", tint: .pink)
+                CurrencyChip(systemImage: CurrencyIcon.fossils, value: profile.fossils, tint: .orange)
+                CurrencyChip(systemImage: CurrencyIcon.eggs, value: profile.eggs, tint: .pink)
             }
             .padding(.top, 8)
 
-            Spacer()
+            Spacer(minLength: 4)
 
             Text("RoarFare")
                 .font(.system(size: 46, weight: .heavy, design: .rounded))
@@ -2390,36 +2577,35 @@ struct MainMenuView: View {
                 .shadow(color: .white.opacity(0.6), radius: 0, x: 0, y: 2)
             Text("A Dinosaur Lane Battler")
                 .font(.headline)
-                .foregroundColor(.secondary)
+                .foregroundColor(Color(red: 0.3, green: 0.22, blue: 0.1).opacity(0.75))
 
-            Spacer()
+            MenuMascotView()
 
-            menuButton("🦖 CAMPAIGN", color: .green, action: onCampaign)
-            menuButton("⚔️ PVP", color: .blue, action: onPvP)
-            menuButton("🥚 SUMMONS", color: .purple, action: onSummons)
-            menuButton("⚡ ENHANCE", color: .orange, action: onEnhance)
-            menuButton("🏆 ACHIEVEMENTS", color: .yellow, action: onAchievements)
+            Spacer(minLength: 4)
 
-            Spacer()
+            menuButton("CAMPAIGN", systemImage: "flag.fill", color: .green, action: onCampaign)
+            menuButton("PVP", systemImage: "shield.lefthalf.filled", color: .blue, action: onPvP)
+            menuButton("SUMMONS", systemImage: "sparkles", color: .purple, action: onSummons)
+            menuButton("ENHANCE", systemImage: "arrow.up.circle.fill", color: .orange, action: onEnhance)
+            menuButton("ACHIEVEMENTS", systemImage: "rosette", color: .yellow, action: onAchievements)
+
+            Spacer(minLength: 8)
         }
         .padding(.horizontal, 32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(roarFareBackground.ignoresSafeArea())
+        .background(MenuBackdropView())
     }
 
-    private func currencyChip(_ text: String, tint: Color) -> some View {
-        Text(text)
-            .font(.subheadline.bold())
-            .foregroundColor(tint)
-            .padding(.vertical, 4)
-            .padding(.horizontal, 10)
-            .background(Color.black.opacity(0.55))
-            .cornerRadius(12)
-    }
-
-    private func menuButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
-            .gameButtonStyle(color: color)
+    private func menuButton(
+        _ title: String, systemImage: String, color: Color, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                Text(title)
+            }
+        }
+        .gameButtonStyle(color: color)
     }
 }
 
@@ -2441,7 +2627,7 @@ struct CampaignMenuView: View {
             HStack {
                 Button("← Home") { onHome() }
                 Spacer()
-                Text("🦴 \(profile.fossils)").foregroundColor(.orange).font(.subheadline.bold())
+                CurrencyChip(systemImage: CurrencyIcon.fossils, value: profile.fossils, tint: .orange)
             }
             .padding(.horizontal)
 
@@ -2457,7 +2643,7 @@ struct CampaignMenuView: View {
                         onBattle(level)
                     } label: {
                         VStack(spacing: 3) {
-                            Text(unlocked ? "🦖" : "🔒").font(.title3)
+                            Image(systemName: unlocked ? "flag.fill" : "lock.fill").font(.body)
                             Text("Stage \(level)").font(.caption.bold())
                         }
                         .frame(maxWidth: .infinity)
@@ -2587,8 +2773,10 @@ struct BattleView: View {
                 } else {
                     let upgradeAffordable = scene.baseUpgradeCost <= scene.amber
                     HStack(spacing: 10) {
-                        Button("⛏ Base Lv\(scene.baseLevel) · \(scene.baseUpgradeCost)") {
+                        Button {
                             scene.upgradeBase()
+                        } label: {
+                            Label("Base Lv\(scene.baseLevel) · \(scene.baseUpgradeCost)", systemImage: "hammer.fill")
                         }
                         .font(.caption.bold())
                         .foregroundColor(.white)
@@ -2600,8 +2788,10 @@ struct BattleView: View {
 
                         Spacer()
 
-                        Button(scene.baseAttackUsed ? "💥 Used" : "💥 Bone Cannon") {
+                        Button {
                             scene.fireBaseAttack()
+                        } label: {
+                            Label(scene.baseAttackUsed ? "Used" : "Bone Cannon", systemImage: "burst.fill")
                         }
                         .font(.caption.bold())
                         .foregroundColor(.white)
@@ -2665,8 +2855,8 @@ struct BattleView: View {
             )
             .overlay(alignment: .topTrailing) {
                 if branchID != nil {
-                    Text("✦")
-                        .font(.system(size: 9))
+                    Image(systemName: "star.fill")
+                        .font(.system(size: 8))
                         .foregroundColor(.orange)
                         .padding(2)
                 }
@@ -2711,7 +2901,7 @@ private func rarityCardColor(for rarity: Rarity) -> Color {
 }
 
 /// Toggle up to `RoarFareContentView.loadoutCap` units in/out of the loadout. Locked units (not
-/// yet unlocked via Summons) show a 🔒 and can't be selected at all. Once the cap is hit,
+/// yet unlocked via Summons) show a lock icon and can't be selected at all. Once the cap is hit,
 /// unselected-but-owned rows disable themselves rather than silently no-op'ing on tap, so it's
 /// clear *why* nothing happened when you try to add an 11th unit.
 struct LoadoutEditorView: View {
@@ -2736,7 +2926,7 @@ struct LoadoutEditorView: View {
                     HStack {
                         Text(unit.name)
                         if !owned {
-                            Text("🔒").font(.caption)
+                            Image(systemName: "lock.fill").font(.caption)
                         }
                         Spacer()
                         if isSelected {
@@ -2765,23 +2955,22 @@ struct SummonsView: View {
     let onHome: () -> Void
     @State private var lastResults: [PlayerProfile.SummonResult] = []
 
-    private func rarityEmoji(_ rarity: Rarity) -> String {
-        switch rarity {
-        case .common: return "⚪️"
-        case .rare: return "🔵"
-        case .epic: return "🟣"
-        case .legendary: return "🌟"
-        }
-    }
-
-    private func describe(_ result: PlayerProfile.SummonResult) -> String {
+    /// One pull's result as a row: a rarity-colored dot + the unit's name and tier, no emoji.
+    @ViewBuilder
+    private func resultRow(_ result: PlayerProfile.SummonResult) -> some View {
         switch result {
         case .unlocked(let unit):
-            return "\(rarityEmoji(unit.rarity)) \(unit.name) — \(unit.rarity.displayName)"
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(rarityCardColor(for: unit.rarity))
+                    .frame(width: 9, height: 9)
+                Text("\(unit.name) — \(unit.rarity.displayName)")
+                    .font(unit.rarity == .legendary ? .subheadline.bold() : .subheadline)
+            }
         case .duplicateRefunded(let amount):
-            return "Everything owned — refunded \(amount) 🥚"
+            Text("Everything owned — refunded \(amount) Eggs").font(.subheadline)
         case .notEnoughEggs:
-            return "Not enough Eggs."
+            Text("Not enough Eggs.").font(.subheadline)
         }
     }
 
@@ -2790,11 +2979,11 @@ struct SummonsView: View {
             HStack {
                 Button("← Home") { onHome() }
                 Spacer()
+                CurrencyChip(systemImage: CurrencyIcon.eggs, value: profile.eggs, tint: .pink)
             }
             .padding(.horizontal)
 
             Text("Summons").font(.system(size: 34, weight: .heavy, design: .rounded))
-            Text("🥚 \(profile.eggs) Eggs").foregroundColor(.pink)
             Text("\(profile.lockedUnitIDs.count) of \(bundledUnits.count) dinosaurs still locked")
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -2803,7 +2992,7 @@ struct SummonsView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(Array(lastResults.enumerated()), id: \.offset) { _, result in
-                            Text(describe(result)).font(.subheadline)
+                            resultRow(result)
                         }
                     }
                     .padding()
@@ -2816,7 +3005,7 @@ struct SummonsView: View {
             }
 
             let singleAffordable = profile.eggs >= PlayerProfile.summonCost
-            Button("Summon x1 (\(PlayerProfile.summonCost) 🥚)") {
+            Button("Summon x1 — \(PlayerProfile.summonCost) Eggs") {
                 lastResults = [profile.summon()]
             }
             .gameButtonStyle(color: .purple, disabled: !singleAffordable)
@@ -2832,7 +3021,7 @@ struct SummonsView: View {
                 }
             } label: {
                 VStack(spacing: 2) {
-                    Text("Summon x10 (\(PlayerProfile.tenSummonCost) 🥚)")
+                    Text("Summon x10 — \(PlayerProfile.tenSummonCost) Eggs")
                     Text("Better SSR odds").font(.caption)
                 }
             }
@@ -2863,7 +3052,7 @@ struct EnhanceView: View {
             HStack {
                 Button("← Home") { onHome() }
                 Spacer()
-                Text("🦴 \(profile.fossils)").foregroundColor(.orange)
+                CurrencyChip(systemImage: CurrencyIcon.fossils, value: profile.fossils, tint: .orange)
             }
             .padding()
 
@@ -2886,11 +3075,14 @@ struct EnhanceView: View {
                     }
                     Spacer()
                     if !maxed {
-                        Button("+\(cost) 🦴") {
+                        Button {
                             profile.enhance(unit.id)
+                        } label: {
+                            Label("\(cost)", systemImage: CurrencyIcon.fossils)
+                                .font(.subheadline.bold())
                         }
                         .disabled(!affordable)
-                        .foregroundColor(affordable ? .primary : .gray)
+                        .foregroundColor(affordable ? .orange : .gray)
                     }
                 }
                 .listRowBackground(Color.white.opacity(0.6))
@@ -2916,7 +3108,7 @@ struct PvPStubView: View {
             HStack {
                 Button("← Home") { onHome() }
                 Spacer()
-                Text("🥚 \(profile.eggs)").foregroundColor(.pink)
+                CurrencyChip(systemImage: CurrencyIcon.eggs, value: profile.eggs, tint: .pink)
             }
             .padding(.horizontal)
 
@@ -2935,10 +3127,10 @@ struct PvPStubView: View {
                     .cornerRadius(10)
             }
 
-            Button("⚔️ Simulate PvP Battle") {
+            Button("Simulate PvP Battle") {
                 if Bool.random() {
                     profile.rewardForPvPWin()
-                    lastResultMessage = "Victory! +\(PlayerProfile.pvpWinEggReward) 🥚"
+                    lastResultMessage = "Victory! +\(PlayerProfile.pvpWinEggReward) Eggs"
                 } else {
                     lastResultMessage = "Defeat. No reward this time."
                 }
@@ -2964,7 +3156,7 @@ struct AchievementsView: View {
             HStack {
                 Button("← Home") { onHome() }
                 Spacer()
-                Text("🥚 \(profile.eggs)").foregroundColor(.pink)
+                CurrencyChip(systemImage: CurrencyIcon.eggs, value: profile.eggs, tint: .pink)
             }
             .padding()
 
@@ -2984,7 +3176,8 @@ struct AchievementsView: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
-                    Text("🥚\(achievement.eggReward)")
+                    Label("\(achievement.eggReward)", systemImage: CurrencyIcon.eggs)
+                        .font(.subheadline.bold())
                         .foregroundColor(unlocked ? .secondary : .pink)
                 }
                 .listRowBackground(Color.white.opacity(0.6))
