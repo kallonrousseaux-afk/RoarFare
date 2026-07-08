@@ -964,7 +964,87 @@ final class BattleScene: SKScene, ObservableObject {
 
 // MARK: - SwiftUI host view
 
+/// Root view: a Clash Royale-style flow -- a persistent main menu where the loadout is set up
+/// (not something you dip into mid-match), with a distinct "Battle" step into the actual fight.
+/// Every trip into `.battle` gets a brand-new `BattleScene` (see `BattleView`'s `@StateObject`),
+/// so leaving to the menu and battling again always starts a clean match.
 struct RoarFareContentView: View {
+    private enum AppScreen {
+        case mainMenu, battle
+    }
+
+    // Battle Cats-style loadout: you own the whole roster, but only bring `loadoutCap` units
+    // into any one match -- forces a real pick each game instead of always having full access
+    // to every unit, which is the actual point ("more variety in games"). Defaults to the
+    // first 10 bundled units so there's always a valid starting loadout with no setup required.
+    static let loadoutCap = 10
+    @State private var loadout: Set<String> = Set(bundledUnits.prefix(loadoutCap).map(\.id))
+    @State private var screen: AppScreen = .mainMenu
+
+    var body: some View {
+        switch screen {
+        case .mainMenu:
+            MainMenuView(loadout: $loadout, onBattle: { screen = .battle })
+        case .battle:
+            BattleView(loadout: loadout, onExit: { screen = .mainMenu })
+        }
+    }
+}
+
+/// The home screen: title, loadout summary/editor, and the single "BATTLE" call to action --
+/// mirrors Clash Royale's "deck lives on the home screen, tap the button to fight" structure
+/// instead of Battle Cats' pick-your-team-then-tap-a-stage flow, since RoarFare only has the one
+/// endless lane right now (no stage select yet).
+struct MainMenuView: View {
+    @Binding var loadout: Set<String>
+    let onBattle: () -> Void
+    @State private var showingLoadoutEditor = false
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+
+            Text("RoarFare")
+                .font(.system(size: 44, weight: .heavy, design: .rounded))
+            Text("A Dinosaur Lane Battler")
+                .font(.headline)
+                .foregroundColor(.secondary)
+
+            Spacer()
+
+            Button("Edit Loadout (\(loadout.count)/\(RoarFareContentView.loadoutCap))") {
+                showingLoadoutEditor = true
+            }
+            .padding(10)
+            .background(Color.purple.opacity(0.3))
+            .cornerRadius(10)
+
+            Button("BATTLE") {
+                onBattle()
+            }
+            .font(.title2.bold())
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(loadout.isEmpty ? Color.gray.opacity(0.4) : Color.green.opacity(0.5))
+            .cornerRadius(14)
+            .disabled(loadout.isEmpty)
+            .padding(.horizontal, 40)
+
+            Spacer()
+        }
+        .sheet(isPresented: $showingLoadoutEditor) {
+            LoadoutEditorView(loadout: $loadout)
+        }
+    }
+}
+
+/// The actual match screen -- SpriteKit battle scene plus the deploy/upgrade/attack HUD. Takes
+/// `loadout` as a plain (non-binding) value on purpose: the loadout you brought into a battle
+/// shouldn't change mid-fight, only back on the main menu between matches.
+struct BattleView: View {
+    let loadout: Set<String>
+    let onExit: () -> Void
+
     @StateObject private var scene: BattleScene = {
         let scene = BattleScene(size: CGSize(width: 400, height: 300))
         scene.scaleMode = .resizeFill
@@ -977,30 +1057,37 @@ struct RoarFareContentView: View {
     // core Era identity signal already works everywhere else (see ART_BIBLE.md §3.1).
     @State private var selectedEra: Era = .triassic
 
-    // Battle Cats-style loadout: you own the whole roster, but only bring `loadoutCap` units
-    // into any one match -- forces a real pick each game instead of always having full access
-    // to every unit, which is the actual point ("more variety in games"). Defaults to the
-    // first 8 bundled units so there's always a valid starting loadout with no setup required.
-    static let loadoutCap = 10
-    @State private var loadout: Set<String> = Set(bundledUnits.prefix(loadoutCap).map(\.id))
-    @State private var showingLoadoutEditor = false
-
     private var visibleOptions: [DeployOption] {
         deployOptions.filter { $0.era == selectedEra && loadout.contains(bundledUnits[$0.unitIndex].id) }
     }
 
     var body: some View {
         VStack(spacing: 0) {
+            HStack {
+                Button("← Home") { onExit() }
+                    .padding(8)
+                Spacer()
+            }
+
             SpriteView(scene: scene)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if scene.isGameOver {
-                Button("Play Again") {
-                    scene.reset()
+                HStack {
+                    Button("Play Again") {
+                        scene.reset()
+                    }
+                    .padding(8)
+                    .background(Color.green.opacity(0.3))
+                    .cornerRadius(8)
+
+                    Button("Home") {
+                        onExit()
+                    }
+                    .padding(8)
+                    .background(Color.gray.opacity(0.3))
+                    .cornerRadius(8)
                 }
-                .padding(8)
-                .background(Color.green.opacity(0.3))
-                .cornerRadius(8)
                 .padding(.top, 8)
             } else {
                 let upgradeAffordable = scene.baseUpgradeCost <= scene.amber
@@ -1032,17 +1119,6 @@ struct RoarFareContentView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.top, 8)
-
-            Button("Edit Loadout (\(loadout.count)/\(Self.loadoutCap))") {
-                showingLoadoutEditor = true
-            }
-            .padding(8)
-            .background(Color.purple.opacity(0.3))
-            .cornerRadius(8)
-            .padding(.top, 4)
-            .sheet(isPresented: $showingLoadoutEditor) {
-                LoadoutEditorView(loadout: $loadout)
-            }
 
             ScrollView(.horizontal) {
                 HStack {
