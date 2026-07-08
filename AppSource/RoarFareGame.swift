@@ -53,6 +53,12 @@ struct UnitStats {
     var rangeUnits: Double
     var knockbackResistant: Bool = false
     var dealsKnockback: Bool = false
+    // Species-level traits, not something an evolution branch changes -- a branch can make a
+    // unit hit harder or tankier, but it doesn't turn a ground unit into a flyer. `isFlying`
+    // units can only be attacked by units that are `isRanged` or `isFlying` themselves; a pure
+    // melee ground unit skips flying targets entirely and just walks past them toward the base.
+    var isRanged: Bool = false
+    var isFlying: Bool = false
 
     func applying(_ modifiers: StatModifiers) -> UnitStats {
         UnitStats(
@@ -61,7 +67,9 @@ struct UnitStats {
             attackIntervalSeconds: attackIntervalSeconds + modifiers.attackIntervalSeconds,
             rangeUnits: rangeUnits,
             knockbackResistant: knockbackResistant || modifiers.grantsKnockbackResistance,
-            dealsKnockback: dealsKnockback || modifiers.grantsKnockbackAttack
+            dealsKnockback: dealsKnockback || modifiers.grantsKnockbackAttack,
+            isRanged: isRanged,
+            isFlying: isFlying
         )
     }
 }
@@ -228,6 +236,15 @@ final class Lane {
         enemyUnits.removeAll { !$0.isAlive }
     }
 
+    /// Direct base-HP damage, bypassing units/lane position entirely -- backs the one-shot
+    /// manual base attack (`BattleScene.fireBaseAttack`), Battle Cats' Cat Cannon equivalent.
+    func dealDamageToBase(_ amount: Int, of side: Side) {
+        switch side {
+        case .player: playerBaseHP -= amount
+        case .enemy: enemyBaseHP -= amount
+        }
+    }
+
     func tick(deltaTime: Double, walkSpeed: Double = 5.0) {
         resolveCombatAndMovement(
             attackers: &playerUnits, defenders: &enemyUnits,
@@ -256,8 +273,10 @@ final class Lane {
                 attackers[i].attackCooldownRemaining -= deltaTime
             }
 
+            let canTargetFlying = stats.isRanged || stats.isFlying
             if let targetIndex = Self.nearestAliveDefenderInRange(
-                from: attackers[i].position, range: stats.rangeUnits, defenders: defenders
+                from: attackers[i].position, range: stats.rangeUnits, defenders: defenders,
+                canTargetFlying: canTargetFlying
             ) {
                 if attackers[i].attackCooldownRemaining <= 0 {
                     let eraAdjusted = Self.eraAdjustedDamage(
@@ -319,11 +338,17 @@ final class Lane {
         return best
     }
 
-    private static func nearestAliveDefenderInRange(from position: Double, range: Double, defenders: [DeployedUnit]) -> Int? {
+    private static func nearestAliveDefenderInRange(
+        from position: Double, range: Double, defenders: [DeployedUnit], canTargetFlying: Bool
+    ) -> Int? {
         var bestIndex: Int?
         var bestDistance = Double.infinity
         for (index, defender) in defenders.enumerated() {
             guard defender.isAlive else { continue }
+            // Pure melee ground units (not ranged, not flying) can't select a flying target at
+            // all -- they just keep walking, same as if nothing were there. Only ranged or
+            // flying attackers can actually hit a flying defender.
+            if defender.effectiveStats.isFlying, !canTargetFlying { continue }
             let distance = abs(defender.position - position)
             guard distance <= range else { continue }
             if distance < bestDistance {
@@ -421,7 +446,9 @@ let bundledUnits: [UnitDefinition] = [
     ),
     UnitDefinition(
         id: "dilophosaurus", name: "Dilophosaurus", era: .jurassic, sizeClass: .small, rarity: .rare,
-        deployCost: 310, baseStats: UnitStats(maxHP: 125, attackDamage: 34, attackIntervalSeconds: 0.9, rangeUnits: 1.2),
+        // Retrofitted as this roster's first long-ranged unit -- venom-spitting fits a ranged
+        // attacker thematically, and rangeUnits 3.0 is well past melee's ~1.0-1.2 norm.
+        deployCost: 310, baseStats: UnitStats(maxHP: 125, attackDamage: 34, attackIntervalSeconds: 0.9, rangeUnits: 3.0, isRanged: true),
         evolutionBranches: [
             EvolutionBranch(id: "venom_spitter", name: "Venom Spitter", statModifiers: StatModifiers(attackDamage: 10), abilityDescription: "Venomous bite deals extra damage.")
         ]
@@ -492,6 +519,16 @@ let bundledUnits: [UnitDefinition] = [
         evolutionBranches: [
             EvolutionBranch(id: "horn_snout_hunter", name: "Horn-Snout Hunter", statModifiers: StatModifiers(attackDamage: 14), abilityDescription: "More aggressive hunting stance, more damage.")
         ]
+    ),
+    // This roster's first flying unit -- no character art yet (renders as an elevated circle,
+    // see `sync`'s altitudeOffset), added specifically to make the new melee-can't-hit-flying
+    // targeting rule actually testable. Only ranged or flying attackers can hit it.
+    UnitDefinition(
+        id: "pteranodon", name: "Pteranodon", era: .cretaceous, sizeClass: .small, rarity: .rare,
+        deployCost: 340, baseStats: UnitStats(maxHP: 100, attackDamage: 26, attackIntervalSeconds: 0.9, rangeUnits: 1.0, isFlying: true),
+        evolutionBranches: [
+            EvolutionBranch(id: "sky_diver", name: "Sky Diver", statModifiers: StatModifiers(attackDamage: 10), abilityDescription: "Dives from above for a harder strike.")
+        ]
     )
 ]
 
@@ -543,8 +580,38 @@ final class BattleScene: SKScene, ObservableObject {
     private var amberAccumulator: Double = 0
     @Published private(set) var amber: Int = 0
     // Was 20/sec, dropped to 12/sec after the first playtest (20 was too fast), then dropped
-    // further to 8/sec -- that turned out too slow, so back to 12/sec.
-    private let amberPerSecond: Double = 12
+    // further to 8/sec -- that turned out too slow, so back to 12/sec. Now a `var`, not a `let`,
+    // because Upgrade Base (Battle Cats-style) permanently raises it for the rest of the match.
+    private let baseAmberPerSecond: Double = 12
+    private var amberPerSecond: Double = 12
+
+    // Battle Cats-style base upgrade: spend Amber to permanently raise income for the rest of
+    // the match, so bigger/expensive units become reachable later on instead of the economy
+    // staying flat the whole game. Cost scales up each level so it's a real decision, not a
+    // no-brainer to spam immediately.
+    @Published private(set) var baseLevel: Int = 1
+    private let amberPerSecondPerUpgrade: Double = 2
+    var baseUpgradeCost: Int { 150 * baseLevel }
+
+    func upgradeBase() {
+        guard !isGameOver, amber >= baseUpgradeCost else { return }
+        amber -= baseUpgradeCost
+        amberAccumulator = Double(amber)
+        amberPerSecond += amberPerSecondPerUpgrade
+        baseLevel += 1
+    }
+
+    // A manual, one-shot base attack -- Battle Cats' Cat Cannon equivalent. Free (no Amber
+    // cost), but usable exactly once per match, so it's a save-it-for-the-right-moment tool
+    // rather than another thing to spend income on.
+    @Published private(set) var baseAttackUsed = false
+    private let baseAttackDamage = 300
+
+    func fireBaseAttack() {
+        guard !isGameOver, !baseAttackUsed else { return }
+        lane.dealDamageToBase(baseAttackDamage, of: .enemy)
+        baseAttackUsed = true
+    }
 
     // The enemy has its own economy now, gated the same way the player's is -- previously this
     // spawned a uniformly random unit (including the 1800-cost T. Rex) every 2 seconds with no
@@ -610,6 +677,9 @@ final class BattleScene: SKScene, ObservableObject {
         lane = Lane(length: 900, playerBaseHP: 1000, enemyBaseHP: 1000)
         amberAccumulator = 0
         amber = 0
+        amberPerSecond = baseAmberPerSecond
+        baseLevel = 1
+        baseAttackUsed = false
         enemyAmberAccumulator = 0
         enemySpawnCheckTimer = 0
         lastUpdateTime = nil
@@ -661,7 +731,10 @@ final class BattleScene: SKScene, ObservableObject {
                 visual = makeVisual(for: unit, sideColor: sideColor)
                 visuals[unit.id] = visual
             }
-            visual.container.position = CGPoint(x: xPosition(for: unit.position), y: size.height / 2)
+            // Flying units render visibly higher up so "it's flying" is readable on screen, not
+            // just a hidden stat -- there's no real art yet, so this is the only visual signal.
+            let altitudeOffset: CGFloat = unit.effectiveStats.isFlying ? 40 : 0
+            visual.container.position = CGPoint(x: xPosition(for: unit.position), y: size.height / 2 + altitudeOffset)
             visual.hpLabel.text = "\(max(0, unit.currentHP))"
         }
         for (id, visual) in visuals where !seenIDs.contains(id) {
@@ -772,6 +845,26 @@ struct RoarFareContentView: View {
                 .padding(8)
                 .background(Color.green.opacity(0.3))
                 .cornerRadius(8)
+                .padding(.top, 8)
+            } else {
+                let upgradeAffordable = scene.baseUpgradeCost <= scene.amber
+                HStack {
+                    Button("Upgrade Base (Lvl \(scene.baseLevel)) — \(scene.baseUpgradeCost) Amber") {
+                        scene.upgradeBase()
+                    }
+                    .padding(8)
+                    .background((upgradeAffordable ? Color.orange : Color.gray).opacity(0.3))
+                    .cornerRadius(8)
+                    .disabled(!upgradeAffordable)
+
+                    Button(scene.baseAttackUsed ? "Base Attack Used" : "Fire Base Attack") {
+                        scene.fireBaseAttack()
+                    }
+                    .padding(8)
+                    .background((scene.baseAttackUsed ? Color.gray : Color.red).opacity(0.3))
+                    .cornerRadius(8)
+                    .disabled(scene.baseAttackUsed)
+                }
                 .padding(.top, 8)
             }
 
