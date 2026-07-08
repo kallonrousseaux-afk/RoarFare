@@ -48,8 +48,19 @@ enum SizeClass {
     }
 }
 
-enum Rarity {
+enum Rarity: Hashable {
     case common, rare, epic, legendary
+
+    /// Gacha-style display names -- "SSR" for the top tier is the term the Summons screen uses,
+    /// matching the genre convention instead of the internal `legendary` case name.
+    var displayName: String {
+        switch self {
+        case .common: return "Common"
+        case .rare: return "Rare"
+        case .epic: return "Epic"
+        case .legendary: return "SSR"
+        }
+    }
 }
 
 struct StatModifiers {
@@ -1392,8 +1403,9 @@ final class BattleScene: SKScene, ObservableObject {
         let skyTexture = Self.gradientTexture(
             size: size,
             colors: [
-                SKColor(red: 0.96, green: 0.85, blue: 0.62, alpha: 1),
-                SKColor(red: 0.55, green: 0.72, blue: 0.52, alpha: 1)
+                SKColor(red: 0.55, green: 0.78, blue: 0.92, alpha: 1),
+                SKColor(red: 0.98, green: 0.87, blue: 0.6, alpha: 1),
+                SKColor(red: 0.62, green: 0.78, blue: 0.56, alpha: 1)
             ]
         )
         let sky = SKSpriteNode(texture: skyTexture, size: size)
@@ -1401,40 +1413,76 @@ final class BattleScene: SKScene, ObservableObject {
         sky.zPosition = -100
         addChild(sky)
 
-        let sun = SKShapeNode(circleOfRadius: 22)
-        sun.fillColor = SKColor(red: 1.0, green: 0.87, blue: 0.55, alpha: 0.9)
+        let sun = SKShapeNode(circleOfRadius: 24)
+        sun.fillColor = SKColor(red: 1.0, green: 0.9, blue: 0.6, alpha: 0.95)
         sun.strokeColor = .clear
-        sun.position = CGPoint(x: size.width * 0.85, y: size.height * 0.82)
-        sun.zPosition = -90
+        sun.glowWidth = 14
+        sun.position = CGPoint(x: size.width * 0.85, y: size.height * 0.85)
+        sun.zPosition = -92
         addChild(sun)
 
-        let mountainColor = SKColor(red: 0.35, green: 0.45, blue: 0.32, alpha: 0.55)
-        for (xFraction, peakHeight, widthFraction) in [(0.15, 90.0, 0.4), (0.45, 120.0, 0.5), (0.78, 75.0, 0.35)] {
-            let path = CGMutablePath()
+        // Soft drifting clouds -- purely decorative, breaks up the flat sky gradient a bit.
+        let cloudColor = SKColor.white.withAlphaComponent(0.6)
+        let cloudSpecs: [(xFraction: CGFloat, yFraction: CGFloat, scale: CGFloat)] = [
+            (0.18, 0.9, 1.0), (0.55, 0.94, 0.7), (0.85, 0.8, 0.85)
+        ]
+        for spec in cloudSpecs {
+            let cloud = SKNode()
+            let puffSpecs: [(dx: CGFloat, dy: CGFloat, r: CGFloat)] = [
+                (-14, 0, 12), (0, 5, 16), (14, 0, 12)
+            ]
+            for puffSpec in puffSpecs {
+                let puff = SKShapeNode(circleOfRadius: puffSpec.r * spec.scale)
+                puff.fillColor = cloudColor
+                puff.strokeColor = .clear
+                puff.position = CGPoint(x: puffSpec.dx * spec.scale, y: puffSpec.dy * spec.scale)
+                cloud.addChild(puff)
+            }
+            cloud.position = CGPoint(x: size.width * spec.xFraction, y: size.height * spec.yFraction)
+            cloud.zPosition = -95
+            addChild(cloud)
+        }
+
+        // Rounded hill silhouettes (a quad curve instead of a sharp triangle) -- reads as toy-like
+        // and chibi per ART_BIBLE.md §1 instead of jagged mountains.
+        let hillColor = SKColor(red: 0.4, green: 0.56, blue: 0.36, alpha: 0.6)
+        for (xFraction, peakHeight, widthFraction) in [(0.15, 90.0, 0.42), (0.45, 120.0, 0.55), (0.78, 75.0, 0.4)] {
             let baseY = size.height / 2 + 10
             let centerX = size.width * CGFloat(xFraction)
             let halfWidth = size.width * CGFloat(widthFraction) / 2
+            let path = CGMutablePath()
             path.move(to: CGPoint(x: centerX - halfWidth, y: baseY))
-            path.addLine(to: CGPoint(x: centerX, y: baseY + CGFloat(peakHeight)))
-            path.addLine(to: CGPoint(x: centerX + halfWidth, y: baseY))
+            path.addQuadCurve(
+                to: CGPoint(x: centerX + halfWidth, y: baseY),
+                control: CGPoint(x: centerX, y: baseY + CGFloat(peakHeight) * 1.3)
+            )
             path.closeSubpath()
-            let mountain = SKShapeNode(path: path)
-            mountain.fillColor = mountainColor
-            mountain.strokeColor = .clear
-            mountain.zPosition = -80
-            addChild(mountain)
+            let hill = SKShapeNode(path: path)
+            hill.fillColor = hillColor
+            hill.strokeColor = .clear
+            hill.zPosition = -80
+            addChild(hill)
         }
 
         // The ground band units actually walk along -- matches the `altitudeOffset` baseline
         // in `sync(units:visuals:sideColor:)` so units visibly stand on it instead of floating.
         let ground = SKShapeNode(rectOf: CGSize(width: size.width, height: 70))
-        ground.fillColor = SKColor(red: 0.42, green: 0.33, blue: 0.2, alpha: 1)
+        ground.fillColor = SKColor(red: 0.48, green: 0.37, blue: 0.22, alpha: 1)
         ground.strokeColor = .clear
         ground.position = CGPoint(x: size.width / 2, y: size.height / 2)
         ground.zPosition = -50
         addChild(ground)
 
-        let plantColor = SKColor(red: 0.22, green: 0.4, blue: 0.2, alpha: 0.8)
+        // A thin lighter strip along the top edge of the ground band reads as grass overhanging
+        // the dirt, cheap but effective toy-diorama depth cue.
+        let grassEdge = SKShapeNode(rectOf: CGSize(width: size.width, height: 10))
+        grassEdge.fillColor = SKColor(red: 0.42, green: 0.62, blue: 0.32, alpha: 0.9)
+        grassEdge.strokeColor = .clear
+        grassEdge.position = CGPoint(x: size.width / 2, y: size.height / 2 + 35)
+        grassEdge.zPosition = -49
+        addChild(grassEdge)
+
+        let plantColor = SKColor(red: 0.24, green: 0.44, blue: 0.22, alpha: 0.85)
         let plantXFractions: [CGFloat] = [0.08, 0.22, 0.38, 0.62, 0.78, 0.92]
         for xFraction in plantXFractions {
             let plant = SKShapeNode(ellipseOf: CGSize(width: 18, height: 10))
@@ -1450,8 +1498,15 @@ final class BattleScene: SKScene, ObservableObject {
         let renderer = UIGraphicsImageRenderer(size: size)
         let image = renderer.image { context in
             let cgColors = colors.map(\.cgColor) as CFArray
+            // Evenly spaced stops for however many colors are passed in -- this used to
+            // hardcode `[0, 1]`, which silently produced no gradient at all (CGGradient's
+            // initializer returns nil on a colors/locations count mismatch) the moment a third
+            // sky color was added above.
+            let locations: [CGFloat] = colors.count > 1
+                ? (0..<colors.count).map { CGFloat($0) / CGFloat(colors.count - 1) }
+                : [0]
             guard let gradient = CGGradient(
-                colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cgColors, locations: [0, 1]
+                colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cgColors, locations: locations
             ) else { return }
             context.cgContext.drawLinearGradient(
                 gradient,
@@ -1573,6 +1628,47 @@ final class BattleScene: SKScene, ObservableObject {
         shadow.zPosition = -1
         container.addChild(shadow)
 
+        // A rarity glow ring behind the body -- ties the battle-scene visuals to the Summons
+        // rarity tiers (rollAndUnlock) so an SSR pull actually looks special on the field, not
+        // just in the gacha result text.
+        if let glowColor = rarityGlowColor(for: unit.definition.rarity) {
+            let glow = SKShapeNode(circleOfRadius: r * 1.25)
+            glow.fillColor = .clear
+            glow.strokeColor = glowColor
+            glow.lineWidth = unit.definition.rarity == .legendary ? 4 : 2.5
+            glow.glowWidth = unit.definition.rarity == .legendary ? 5 : 2
+            glow.alpha = unit.definition.rarity == .legendary ? 0.95 : 0.6
+            glow.zPosition = -0.5
+            container.addChild(glow)
+        }
+
+        // A soft translucent ring for ranged attackers and a pair of stylized wings for flying
+        // ones -- the only visual cues those traits get without real illustrated art, so melee-
+        // can't-hit-flying and ranged-only-attacks read as visibly different silhouettes.
+        if unit.effectiveStats.isFlying {
+            for side: CGFloat in [-1, 1] {
+                let wing = SKShapeNode(ellipseOf: CGSize(width: r * 0.95, height: r * 0.4))
+                wing.fillColor = SKColor.white.withAlphaComponent(0.55)
+                wing.strokeColor = .clear
+                wing.position = CGPoint(x: side * r * 0.85, y: r * 0.05)
+                wing.zRotation = side * 0.45
+                wing.zPosition = -0.3
+                container.addChild(wing)
+            }
+        }
+        if unit.effectiveStats.isRanged {
+            let dashedRing = SKShapeNode(
+                path: CGPath(
+                    ellipseIn: CGRect(x: -r * 1.15, y: -r * 1.15, width: r * 2.3, height: r * 2.3),
+                    transform: nil
+                ).copy(dashingWithPhase: 0, lengths: [4, 3])
+            )
+            dashedRing.strokeColor = SKColor.white.withAlphaComponent(0.6)
+            dashedRing.lineWidth = 1.5
+            dashedRing.zPosition = -0.2
+            container.addChild(dashedRing)
+        }
+
         let shape = SKShapeNode(circleOfRadius: r)
         shape.fillColor = sideColor
         shape.strokeColor = eraColor(for: unit.definition.era)
@@ -1632,6 +1728,17 @@ final class BattleScene: SKScene, ObservableObject {
         case .iceAge: return .white
         case .marine: return .systemBlue
         case .sky: return .systemPurple
+        }
+    }
+
+    /// Common units get no glow at all -- it's meant to make rarer pulls stand out, not to
+    /// decorate everything.
+    private func rarityGlowColor(for rarity: Rarity) -> SKColor? {
+        switch rarity {
+        case .common: return nil
+        case .rare: return .systemBlue
+        case .epic: return .systemPurple
+        case .legendary: return .systemYellow
         }
     }
 
@@ -1701,21 +1808,35 @@ final class BattleScene: SKScene, ObservableObject {
 /// Enhance levels survive across app launches via `UserDefaults`.
 final class PlayerProfile: ObservableObject {
     private static let fossilsKey = "roarfare.fossils"
+    private static let eggsKey = "roarfare.eggs"
     private static let ownedKey = "roarfare.ownedUnitIDs"
     private static let levelsKey = "roarfare.unitLevels"
+    private static let battlesWonKey = "roarfare.battlesWon"
+    private static let achievementsKey = "roarfare.unlockedAchievements"
 
     static let startingFossils = 500
+    static let startingEggs = 300
     // Matches RoarFareContentView.loadoutCap exactly, so the default owned set and the default
     // loadout line up on a fresh install -- nothing in the starting loadout is locked.
     static let startingOwnedCount = 10
     static let maxLevel = 10
     static let enhanceCostPerLevel = 80
+
+    // Two currencies, gacha-style: Fossils pay for Enhance (permanent power on units you
+    // already own, earned by just playing Campaign matches, win or lose); Eggs pay for Summons
+    // (unlocking new units, earned only from PvP wins and Achievements). Keeping them separate
+    // means grinding Campaign never buys you new roster slots, and vice versa.
     static let summonCost = 150
+    static let tenSummonCost = summonCost * 10
     static let battleWinReward = 100
     static let battleLossReward = 30
+    static let pvpWinEggReward = 5
 
     @Published var fossils: Int {
         didSet { UserDefaults.standard.set(fossils, forKey: Self.fossilsKey) }
+    }
+    @Published var eggs: Int {
+        didSet { UserDefaults.standard.set(eggs, forKey: Self.eggsKey) }
     }
     @Published var ownedUnitIDs: Set<String> {
         didSet { UserDefaults.standard.set(Array(ownedUnitIDs), forKey: Self.ownedKey) }
@@ -1723,20 +1844,31 @@ final class PlayerProfile: ObservableObject {
     @Published var unitLevels: [String: Int] {
         didSet { UserDefaults.standard.set(unitLevels, forKey: Self.levelsKey) }
     }
+    @Published private(set) var battlesWon: Int {
+        didSet { UserDefaults.standard.set(battlesWon, forKey: Self.battlesWonKey) }
+    }
+    @Published private(set) var unlockedAchievementIDs: Set<String> {
+        didSet { UserDefaults.standard.set(Array(unlockedAchievementIDs), forKey: Self.achievementsKey) }
+    }
 
     init() {
         let defaults = UserDefaults.standard
-        if defaults.object(forKey: Self.fossilsKey) != nil {
-            fossils = defaults.integer(forKey: Self.fossilsKey)
-        } else {
-            fossils = Self.startingFossils
-        }
+        fossils = defaults.object(forKey: Self.fossilsKey) != nil
+            ? defaults.integer(forKey: Self.fossilsKey) : Self.startingFossils
+        eggs = defaults.object(forKey: Self.eggsKey) != nil
+            ? defaults.integer(forKey: Self.eggsKey) : Self.startingEggs
         if let savedOwned = defaults.array(forKey: Self.ownedKey) as? [String] {
             ownedUnitIDs = Set(savedOwned)
         } else {
             ownedUnitIDs = Set(bundledUnits.prefix(Self.startingOwnedCount).map(\.id))
         }
         unitLevels = defaults.dictionary(forKey: Self.levelsKey) as? [String: Int] ?? [:]
+        battlesWon = defaults.integer(forKey: Self.battlesWonKey)
+        if let savedAchievements = defaults.array(forKey: Self.achievementsKey) as? [String] {
+            unlockedAchievementIDs = Set(savedAchievements)
+        } else {
+            unlockedAchievementIDs = []
+        }
     }
 
     var lockedUnitIDs: [String] {
@@ -1759,33 +1891,123 @@ final class PlayerProfile: ObservableObject {
         guard fossils >= cost else { return false }
         fossils -= cost
         unitLevels[unitID] = currentLevel + 1
+        checkAchievements()
         return true
     }
 
     enum SummonResult {
-        case unlocked(String)
-        case allOwnedRefunded
-        case notEnoughFossils
+        case unlocked(UnitDefinition)
+        case duplicateRefunded(Int)
+        case notEnoughEggs
     }
 
-    /// A deliberately simplified single-pull gacha -- no rarity-weighted rates or pity counter
-    /// like `MONETIZATION.md`'s full Fossil Dig spec, just a flat pull from whatever's still
-    /// locked. If everything's already owned, half the spend is refunded rather than wasted.
+    // Standard gacha-style weighted rarity odds -- common units are common, SSR (legendary) is
+    // rare. The 10-pull uses slightly better odds per pull than 10 separate singles, the usual
+    // "multi-pull sweetener" gacha games use to make bulk pulls feel worth doing.
+    private static let singlePullOdds: [Rarity: Double] = [
+        .common: 0.60, .rare: 0.27, .epic: 0.10, .legendary: 0.03
+    ]
+    private static let tenPullOdds: [Rarity: Double] = [
+        .common: 0.55, .rare: 0.28, .epic: 0.12, .legendary: 0.05
+    ]
+
+    /// A single gacha pull: rolls a rarity tier by weighted odds, then picks a random still-locked
+    /// unit of that tier. If every unit of the rolled tier is already owned, falls back to any
+    /// other locked unit so a lucky SSR roll never just evaporates; if the whole roster is
+    /// already owned, refunds half the spend in Eggs instead of wasting it.
     @discardableResult
     func summon() -> SummonResult {
-        guard fossils >= Self.summonCost else { return .notEnoughFossils }
-        fossils -= Self.summonCost
-        guard let pick = lockedUnitIDs.randomElement() else {
-            fossils += Self.summonCost / 2
-            return .allOwnedRefunded
+        guard eggs >= Self.summonCost else { return .notEnoughEggs }
+        eggs -= Self.summonCost
+        let result = rollAndUnlock(odds: Self.singlePullOdds)
+        checkAchievements()
+        return result
+    }
+
+    /// A 10-pull at exactly 10x the single cost with slightly boosted SSR odds per pull (see
+    /// `tenPullOdds`). Spends the full cost up front so a mid-roll "not enough Eggs" can't
+    /// happen partway through.
+    @discardableResult
+    func summonTen() -> [SummonResult]? {
+        guard eggs >= Self.tenSummonCost else { return nil }
+        eggs -= Self.tenSummonCost
+        let results = (0..<10).map { _ in rollAndUnlock(odds: Self.tenPullOdds) }
+        checkAchievements()
+        return results
+    }
+
+    private func rollAndUnlock(odds: [Rarity: Double]) -> SummonResult {
+        let rolledRarity = Self.rollRarity(odds)
+        let inTier = bundledUnits.filter { $0.rarity == rolledRarity && !ownedUnitIDs.contains($0.id) }
+        if let pick = inTier.randomElement() {
+            ownedUnitIDs.insert(pick.id)
+            return .unlocked(pick)
         }
-        ownedUnitIDs.insert(pick)
-        return .unlocked(pick)
+        let anyLocked = bundledUnits.filter { !ownedUnitIDs.contains($0.id) }
+        if let pick = anyLocked.randomElement() {
+            ownedUnitIDs.insert(pick.id)
+            return .unlocked(pick)
+        }
+        let refund = Self.summonCost / 2
+        eggs += refund
+        return .duplicateRefunded(refund)
+    }
+
+    private static func rollRarity(_ odds: [Rarity: Double]) -> Rarity {
+        let roll = Double.random(in: 0..<1)
+        var cumulative = 0.0
+        for rarity: Rarity in [.common, .rare, .epic, .legendary] {
+            cumulative += odds[rarity] ?? 0
+            if roll < cumulative { return rarity }
+        }
+        return .legendary
     }
 
     func rewardForMatch(didWin: Bool) {
+        if didWin { battlesWon += 1 }
         fossils += didWin ? Self.battleWinReward : Self.battleLossReward
+        checkAchievements()
     }
+
+    /// PvP has no real matchmaking backend yet (see `docs/ROADMAP.md` Phase 7), so
+    /// `PvPStubView` calls this from a local "Simulate Battle" button instead of a real match
+    /// result -- the currency reward is wired up and testable now, ready to hook to a real
+    /// match outcome once matchmaking exists.
+    func rewardForPvPWin() {
+        eggs += Self.pvpWinEggReward
+        checkAchievements()
+    }
+
+    private func checkAchievements() {
+        for achievement in Achievement.all where !unlockedAchievementIDs.contains(achievement.id) {
+            if achievement.isUnlocked(self) {
+                unlockedAchievementIDs.insert(achievement.id)
+                eggs += achievement.eggReward
+            }
+        }
+    }
+}
+
+/// Milestone rewards paid in Eggs (the Summons currency) -- the second of the two ways to earn
+/// Eggs besides PvP wins. Checked after every match, enhance, and summon so a milestone crossed
+/// mid-action unlocks immediately instead of needing a separate "claim" step.
+struct Achievement: Identifiable {
+    let id: String
+    let name: String
+    let description: String
+    let eggReward: Int
+    let isUnlocked: (PlayerProfile) -> Bool
+
+    static let all: [Achievement] = [
+        Achievement(id: "first_win", name: "First Blood", description: "Win your first battle.", eggReward: 10) { $0.battlesWon >= 1 },
+        Achievement(id: "ten_wins", name: "Veteran", description: "Win 10 battles.", eggReward: 25) { $0.battlesWon >= 10 },
+        Achievement(id: "fifty_wins", name: "Champion", description: "Win 50 battles.", eggReward: 60) { $0.battlesWon >= 50 },
+        Achievement(id: "collector_25", name: "Collector", description: "Own 25 dinosaurs.", eggReward: 20) { $0.ownedUnitIDs.count >= 25 },
+        Achievement(id: "collector_50", name: "Curator", description: "Own 50 dinosaurs.", eggReward: 35) { $0.ownedUnitIDs.count >= 50 },
+        Achievement(id: "full_roster", name: "Completionist", description: "Own every dinosaur.", eggReward: 75) { $0.ownedUnitIDs.count >= bundledUnits.count },
+        Achievement(id: "enhancer_5", name: "Enhancer", description: "Enhance any dinosaur to level 5.", eggReward: 20) { profile in profile.unitLevels.values.contains { $0 >= 5 } },
+        Achievement(id: "enhancer_max", name: "Perfectionist", description: "Enhance any dinosaur to max level.", eggReward: 40) { profile in profile.unitLevels.values.contains { $0 >= PlayerProfile.maxLevel } }
+    ]
 }
 
 // MARK: - SwiftUI host view
@@ -1801,13 +2023,38 @@ private let roarFareBackground = LinearGradient(
     startPoint: .top, endPoint: .bottom
 )
 
+private extension View {
+    /// The app's one shared "big call-to-action" button look: gradient fill, bold white text,
+    /// rounded corners, a light border, and a drop shadow. Replaces the flat
+    /// `color.opacity(0.5)` flat-fill buttons every menu screen used before the graphics pass.
+    func gameButtonStyle(color: Color, disabled: Bool = false) -> some View {
+        self
+            .font(.title2.bold())
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: disabled ? [Color.gray, Color.gray.opacity(0.7)] : [color, color.opacity(0.7)],
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.white.opacity(0.35), lineWidth: 1.5)
+            )
+            .shadow(color: .black.opacity(0.25), radius: 5, x: 0, y: 3)
+    }
+}
+
 /// Root view: owns the persistent `PlayerProfile` and the loadout, routing between the true
 /// main menu and its sub-screens. Every trip into `.battle` gets a brand-new `BattleScene` (see
 /// `BattleView`'s `@StateObject`), so leaving to the menu and battling again always starts a
 /// clean match.
 struct RoarFareContentView: View {
     private enum AppScreen {
-        case mainMenu, campaignMenu, battle, pvp, summons, enhance
+        case mainMenu, campaignMenu, battle, pvp, summons, enhance, achievements
     }
 
     // Battle Cats-style loadout: you own the whole roster, but only bring `loadoutCap` units
@@ -1828,7 +2075,8 @@ struct RoarFareContentView: View {
                 onCampaign: { screen = .campaignMenu },
                 onPvP: { screen = .pvp },
                 onSummons: { screen = .summons },
-                onEnhance: { screen = .enhance }
+                onEnhance: { screen = .enhance },
+                onAchievements: { screen = .achievements }
             )
         case .campaignMenu:
             CampaignMenuView(
@@ -1838,16 +2086,18 @@ struct RoarFareContentView: View {
         case .battle:
             BattleView(profile: profile, loadout: loadout, onExit: { screen = .mainMenu })
         case .pvp:
-            PvPStubView(onHome: { screen = .mainMenu })
+            PvPStubView(profile: profile, onHome: { screen = .mainMenu })
         case .summons:
             SummonsView(profile: profile, onHome: { screen = .mainMenu })
         case .enhance:
             EnhanceView(profile: profile, onHome: { screen = .mainMenu })
+        case .achievements:
+            AchievementsView(profile: profile, onHome: { screen = .mainMenu })
         }
     }
 }
 
-/// The true home screen -- title, Fossil balance, and the four mode buttons (Clash
+/// The true home screen -- title, currency balances, and the five mode buttons (Clash
 /// Royale/Battle Cats-style hub, "dinosaurs" per the brief). PvP is a stub for now: real
 /// matchmaking needs a backend, which is explicitly Phase 7 in `docs/ROADMAP.md`, not something
 /// a local single-player build can fake convincingly.
@@ -1857,9 +2107,10 @@ struct MainMenuView: View {
     let onPvP: () -> Void
     let onSummons: () -> Void
     let onEnhance: () -> Void
+    let onAchievements: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 14) {
             Spacer()
 
             Text("RoarFare")
@@ -1867,9 +2118,11 @@ struct MainMenuView: View {
             Text("A Dinosaur Lane Battler")
                 .font(.headline)
                 .foregroundColor(.secondary)
-            Text("🦴 \(profile.fossils) Fossils")
-                .font(.subheadline)
-                .foregroundColor(.orange)
+            HStack(spacing: 18) {
+                Text("🦴 \(profile.fossils)").foregroundColor(.orange)
+                Text("🥚 \(profile.eggs)").foregroundColor(.pink)
+            }
+            .font(.subheadline.bold())
 
             Spacer()
 
@@ -1877,6 +2130,7 @@ struct MainMenuView: View {
             menuButton("⚔️ PVP", color: .blue, action: onPvP)
             menuButton("🥚 SUMMONS", color: .purple, action: onSummons)
             menuButton("⚡ ENHANCE", color: .orange, action: onEnhance)
+            menuButton("🏆 ACHIEVEMENTS", color: .yellow, action: onAchievements)
 
             Spacer()
         }
@@ -1887,11 +2141,7 @@ struct MainMenuView: View {
 
     private func menuButton(_ title: String, color: Color, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
-            .font(.title2.bold())
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(color.opacity(0.5))
-            .cornerRadius(14)
+            .gameButtonStyle(color: color)
     }
 }
 
@@ -1926,11 +2176,7 @@ struct CampaignMenuView: View {
             Button("BATTLE") {
                 onBattle()
             }
-            .font(.title2.bold())
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(loadout.isEmpty ? Color.gray.opacity(0.4) : Color.green.opacity(0.5))
-            .cornerRadius(14)
+            .gameButtonStyle(color: .green, disabled: loadout.isEmpty)
             .disabled(loadout.isEmpty)
             .padding(.horizontal, 40)
 
@@ -2103,54 +2349,87 @@ struct LoadoutEditorView: View {
     }
 }
 
-/// A single-pull Summons screen -- see `PlayerProfile.summon()` for exactly how simplified this
-/// is versus `MONETIZATION.md`'s full Fossil Dig spec (no rates, no pity, no rarity weighting).
+/// The gacha screen -- spend Eggs for a chance at any locked dinosaur, weighted by rarity (see
+/// `PlayerProfile.singlePullOdds`/`tenPullOdds`). A single pull or a 10-pull with slightly
+/// better SSR odds, matching the standard mobile-gacha "multi-pull sweetener" pattern.
 struct SummonsView: View {
     @ObservedObject var profile: PlayerProfile
     let onHome: () -> Void
-    @State private var lastResultMessage: String?
+    @State private var lastResults: [PlayerProfile.SummonResult] = []
+
+    private func rarityEmoji(_ rarity: Rarity) -> String {
+        switch rarity {
+        case .common: return "⚪️"
+        case .rare: return "🔵"
+        case .epic: return "🟣"
+        case .legendary: return "🌟"
+        }
+    }
+
+    private func describe(_ result: PlayerProfile.SummonResult) -> String {
+        switch result {
+        case .unlocked(let unit):
+            return "\(rarityEmoji(unit.rarity)) \(unit.name) — \(unit.rarity.displayName)"
+        case .duplicateRefunded(let amount):
+            return "Everything owned — refunded \(amount) 🥚"
+        case .notEnoughEggs:
+            return "Not enough Eggs."
+        }
+    }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 14) {
             HStack {
                 Button("← Home") { onHome() }
                 Spacer()
             }
             .padding(.horizontal)
 
-            Spacer()
             Text("Summons").font(.system(size: 34, weight: .heavy, design: .rounded))
-            Text("🦴 \(profile.fossils) Fossils").foregroundColor(.orange)
+            Text("🥚 \(profile.eggs) Eggs").foregroundColor(.pink)
             Text("\(profile.lockedUnitIDs.count) of \(bundledUnits.count) dinosaurs still locked")
                 .font(.caption)
                 .foregroundColor(.secondary)
 
-            if let message = lastResultMessage {
-                Text(message)
-                    .font(.headline)
+            if !lastResults.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(lastResults.enumerated()), id: \.offset) { _, result in
+                            Text(describe(result)).font(.subheadline)
+                        }
+                    }
                     .padding()
-                    .background(Color.yellow.opacity(0.2))
-                    .cornerRadius(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 150)
+                .background(Color.white.opacity(0.6))
+                .cornerRadius(10)
+                .padding(.horizontal, 30)
             }
 
-            let affordable = profile.fossils >= PlayerProfile.summonCost
-            Button("Summon (\(PlayerProfile.summonCost) 🦴)") {
-                switch profile.summon() {
-                case .unlocked(let unitID):
-                    let name = bundledUnits.first(where: { $0.id == unitID })?.name ?? unitID
-                    lastResultMessage = "Unlocked \(name)!"
-                case .allOwnedRefunded:
-                    lastResultMessage = "All dinosaurs already unlocked — refunded half in Fossils."
-                case .notEnoughFossils:
-                    lastResultMessage = "Not enough Fossils."
+            let singleAffordable = profile.eggs >= PlayerProfile.summonCost
+            Button("Summon x1 (\(PlayerProfile.summonCost) 🥚)") {
+                lastResults = [profile.summon()]
+            }
+            .gameButtonStyle(color: .purple, disabled: !singleAffordable)
+            .disabled(!singleAffordable)
+            .padding(.horizontal, 40)
+
+            let tenAffordable = profile.eggs >= PlayerProfile.tenSummonCost
+            Button {
+                if let results = profile.summonTen() {
+                    lastResults = results
+                } else {
+                    lastResults = [.notEnoughEggs]
+                }
+            } label: {
+                VStack(spacing: 2) {
+                    Text("Summon x10 (\(PlayerProfile.tenSummonCost) 🥚)")
+                    Text("Better SSR odds").font(.caption)
                 }
             }
-            .font(.title2.bold())
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background((affordable ? Color.purple : Color.gray).opacity(0.5))
-            .cornerRadius(14)
-            .disabled(!affordable)
+            .gameButtonStyle(color: .indigo, disabled: !tenAffordable)
+            .disabled(!tenAffordable)
             .padding(.horizontal, 40)
 
             Spacer()
@@ -2215,26 +2494,94 @@ struct EnhanceView: View {
     }
 }
 
-/// Placeholder for real PvP -- matchmaking and a live opponent need a backend this local
-/// single-player build doesn't have (see `docs/ROADMAP.md` Phase 7, "Rival Grounds").
+/// Real matchmaking and a live opponent need a backend this local single-player build doesn't
+/// have (see `docs/ROADMAP.md` Phase 7, "Rival Grounds"), but the Egg reward that a PvP win is
+/// supposed to grant (`PlayerProfile.rewardForPvPWin`) is real -- this "Simulate" button lets
+/// that reward loop actually be tested now instead of sitting dead code until a backend exists.
 struct PvPStubView: View {
+    @ObservedObject var profile: PlayerProfile
     let onHome: () -> Void
+    @State private var lastResultMessage: String?
 
     var body: some View {
         VStack(spacing: 20) {
             HStack {
                 Button("← Home") { onHome() }
                 Spacer()
+                Text("🥚 \(profile.eggs)").foregroundColor(.pink)
             }
             .padding(.horizontal)
 
             Spacer()
             Text("PvP").font(.system(size: 34, weight: .heavy, design: .rounded))
-            Text("Rival Grounds is planned but needs a real backend for matchmaking and live opponents — see docs/ROADMAP.md Phase 7. Not built yet.")
+            Text("Rival Grounds is planned but needs a real backend for matchmaking and live opponents — see docs/ROADMAP.md Phase 7. Simulate a quick skirmish below to test the reward loop in the meantime.")
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 30)
+
+            if let message = lastResultMessage {
+                Text(message)
+                    .font(.headline)
+                    .padding()
+                    .background(Color.yellow.opacity(0.2))
+                    .cornerRadius(10)
+            }
+
+            Button("⚔️ Simulate PvP Battle") {
+                if Bool.random() {
+                    profile.rewardForPvPWin()
+                    lastResultMessage = "Victory! +\(PlayerProfile.pvpWinEggReward) 🥚"
+                } else {
+                    lastResultMessage = "Defeat. No reward this time."
+                }
+            }
+            .gameButtonStyle(color: .blue)
+            .padding(.horizontal, 40)
+
             Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(roarFareBackground.ignoresSafeArea())
+    }
+}
+
+/// Milestone list -- see `Achievement.all` for the actual conditions/rewards. Reachable from the
+/// Main Menu; unlocked items show a checkmark, locked ones show what they still need.
+struct AchievementsView: View {
+    @ObservedObject var profile: PlayerProfile
+    let onHome: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button("← Home") { onHome() }
+                Spacer()
+                Text("🥚 \(profile.eggs)").foregroundColor(.pink)
+            }
+            .padding()
+
+            Text("Achievements")
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .padding(.bottom, 8)
+
+            List(Achievement.all) { achievement in
+                let unlocked = profile.unlockedAchievementIDs.contains(achievement.id)
+                HStack {
+                    Image(systemName: unlocked ? "checkmark.seal.fill" : "lock.fill")
+                        .foregroundColor(unlocked ? .green : .gray)
+                    VStack(alignment: .leading) {
+                        Text(achievement.name).font(.headline)
+                        Text(achievement.description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Text("🥚\(achievement.eggReward)")
+                        .foregroundColor(unlocked ? .secondary : .pink)
+                }
+                .listRowBackground(Color.white.opacity(0.6))
+            }
+            .scrollContentBackground(.hidden)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(roarFareBackground.ignoresSafeArea())
