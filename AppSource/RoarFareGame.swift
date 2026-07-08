@@ -108,6 +108,43 @@ struct EvolutionBranch {
     }
 }
 
+/// A themed group of units that buffs its own members when 2+ of them are alive on the same
+/// side at once -- e.g. Velociraptor's "Pack Hunter" branch flavor text ("Sharper coordinated
+/// strikes") was previously just text; this makes it a real, live combat bonus.
+enum SynergyGroup: Equatable {
+    case raptorPack
+    case armoredLine
+    case apexTitans
+
+    /// Minimum alive members (including the unit itself) needed to activate the bonus.
+    var requiredCount: Int { 2 }
+
+    var displayName: String {
+        switch self {
+        case .raptorPack: return "Raptor Pack"
+        case .armoredLine: return "Armored Line"
+        case .apexTitans: return "Apex Titans"
+        }
+    }
+
+    /// Multiplies attackDamage while active. 1.0 means this group doesn't buff damage.
+    var attackDamageMultiplier: Double {
+        switch self {
+        case .raptorPack: return 1.25
+        case .apexTitans: return 1.20
+        case .armoredLine: return 1.0
+        }
+    }
+
+    /// Multiplies attackIntervalSeconds while active (below 1.0 = attacks faster).
+    var attackIntervalMultiplier: Double {
+        switch self {
+        case .armoredLine: return 0.85
+        default: return 1.0
+        }
+    }
+}
+
 struct UnitDefinition: Identifiable {
     let id: String
     let name: String
@@ -117,10 +154,12 @@ struct UnitDefinition: Identifiable {
     let deployCost: Int
     let baseStats: UnitStats
     let evolutionBranches: [EvolutionBranch]
+    let synergyGroup: SynergyGroup?
 
     init(
         id: String, name: String, era: Era, sizeClass: SizeClass, rarity: Rarity,
-        deployCost: Int, baseStats: UnitStats, evolutionBranches: [EvolutionBranch] = []
+        deployCost: Int, baseStats: UnitStats, evolutionBranches: [EvolutionBranch] = [],
+        synergyGroup: SynergyGroup? = nil
     ) {
         self.id = id
         self.name = name
@@ -130,6 +169,7 @@ struct UnitDefinition: Identifiable {
         self.deployCost = deployCost
         self.baseStats = baseStats
         self.evolutionBranches = evolutionBranches
+        self.synergyGroup = synergyGroup
     }
 
     func branch(withID branchID: String) -> EvolutionBranch? {
@@ -291,6 +331,11 @@ final class Lane {
             guard attackers[i].isAlive else { continue }
             var stats = attackers[i].effectiveStats
             stats.attackIntervalSeconds *= Self.auraAttackIntervalMultiplier(for: attackers[i], allies: attackers)
+            if let group = attackers[i].definition.synergyGroup,
+               Self.synergyIsActive(group, allies: attackers) {
+                stats.attackDamage = Int((Double(stats.attackDamage) * group.attackDamageMultiplier).rounded())
+                stats.attackIntervalSeconds *= group.attackIntervalMultiplier
+            }
 
             if attackers[i].attackCooldownRemaining > 0 {
                 attackers[i].attackCooldownRemaining -= deltaTime
@@ -363,6 +408,14 @@ final class Lane {
         return best
     }
 
+    /// True once `group.requiredCount` alive members of the same synergy group (the unit
+    /// itself included) are on this side, no matter where they are on the lane -- unlike the
+    /// attack-speed aura, synergy isn't position/range-gated, it's about squad composition.
+    private static func synergyIsActive(_ group: SynergyGroup, allies: [DeployedUnit]) -> Bool {
+        let memberCount = allies.filter { $0.isAlive && $0.definition.synergyGroup == group }.count
+        return memberCount >= group.requiredCount
+    }
+
     private static func nearestAliveDefenderInRange(
         from position: Double, range: Double, defenders: [DeployedUnit], canTargetFlying: Bool
     ) -> Int? {
@@ -404,7 +457,8 @@ let bundledUnits: [UnitDefinition] = [
         deployCost: 300, baseStats: UnitStats(maxHP: 120, attackDamage: 30, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
         evolutionBranches: [
             EvolutionBranch(id: "pack_hunter", name: "Pack Hunter", statModifiers: StatModifiers(attackDamage: 8), abilityDescription: "Sharper coordinated strikes, more damage.")
-        ]
+        ],
+        synergyGroup: .raptorPack
     ),
     UnitDefinition(
         id: "deinonychus", name: "Deinonychus", era: .cretaceous, sizeClass: .small, rarity: .rare,
@@ -412,7 +466,8 @@ let bundledUnits: [UnitDefinition] = [
         evolutionBranches: [
             EvolutionBranch(id: "pack_leader", name: "Pack Leader", statModifiers: StatModifiers(), abilityDescription: "Pack Hunting bonus with other raptors."),
             EvolutionBranch(id: "ambush_striker", name: "Ambush Striker", statModifiers: StatModifiers(maxHP: -10), abilityDescription: "First hit deals 3x damage.", ability: .firstHitBonus(damageMultiplier: 3.0))
-        ]
+        ],
+        synergyGroup: .raptorPack
     ),
     UnitDefinition(
         id: "parasaurolophus", name: "Parasaurolophus", era: .cretaceous, sizeClass: .medium, rarity: .common,
@@ -427,21 +482,24 @@ let bundledUnits: [UnitDefinition] = [
         deployCost: 500, baseStats: UnitStats(maxHP: 420, attackDamage: 34, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
         evolutionBranches: [
             EvolutionBranch(id: "bulwark_horn", name: "Bulwark Horn", statModifiers: StatModifiers(maxHP: 80, grantsKnockbackAttack: true), abilityDescription: "Horn charge knocks enemies back.")
-        ]
+        ],
+        synergyGroup: .armoredLine
     ),
     UnitDefinition(
         id: "stegosaurus", name: "Stegosaurus", era: .jurassic, sizeClass: .large, rarity: .rare,
         deployCost: 750, baseStats: UnitStats(maxHP: 700, attackDamage: 55, attackIntervalSeconds: 1.6, rangeUnits: 1.0, knockbackResistant: true),
         evolutionBranches: [
             EvolutionBranch(id: "thagomizer_guardian", name: "Thagomizer Guardian", statModifiers: StatModifiers(attackDamage: 15, grantsKnockbackAttack: true), abilityDescription: "Tail-spike swing knocks enemies back.")
-        ]
+        ],
+        synergyGroup: .armoredLine
     ),
     UnitDefinition(
         id: "ankylosaurus", name: "Ankylosaurus", era: .cretaceous, sizeClass: .large, rarity: .epic,
         deployCost: 800, baseStats: UnitStats(maxHP: 780, attackDamage: 48, attackIntervalSeconds: 1.4, rangeUnits: 1.2, knockbackResistant: true),
         evolutionBranches: [
             EvolutionBranch(id: "club_tail_breaker", name: "Club-Tail Breaker", statModifiers: StatModifiers(attackDamage: 20, grantsKnockbackAttack: true), abilityDescription: "Heavier tail-club hits knock enemies back.")
-        ]
+        ],
+        synergyGroup: .armoredLine
     ),
     UnitDefinition(
         id: "tyrannosaurus_rex", name: "Tyrannosaurus Rex", era: .cretaceous, sizeClass: .apex, rarity: .legendary,
@@ -450,7 +508,8 @@ let bundledUnits: [UnitDefinition] = [
         evolutionBranches: [
             EvolutionBranch(id: "tyrant_king", name: "Tyrant King", statModifiers: StatModifiers(maxHP: 200, attackDamage: 40), abilityDescription: "Pure apex-predator scaling: more HP, more damage."),
             EvolutionBranch(id: "bone_crusher", name: "Bone-Crusher", statModifiers: StatModifiers(attackDamage: 80, attackIntervalSeconds: 0.3, grantsKnockbackAttack: true), abilityDescription: "Slower but devastating bite that knocks enemies back.")
-        ]
+        ],
+        synergyGroup: .apexTitans
     ),
     // MARK: Roster expansion -- fills out era/size coverage and builds three units the design
     // doc already named (Pack Hunting §6's raptor pack and ceratopsian wall) but never actually
@@ -492,28 +551,32 @@ let bundledUnits: [UnitDefinition] = [
         evolutionBranches: [
             EvolutionBranch(id: "sky_reacher", name: "Sky Reacher", statModifiers: StatModifiers(maxHP: 400), abilityDescription: "Even more HP -- a true walking fortress."),
             EvolutionBranch(id: "canopy_titan", name: "Canopy Titan", statModifiers: StatModifiers(attackDamage: -50), abilityDescription: "Loses personal damage; grants an attack-speed aura to nearby allies.", ability: .attackSpeedAura(range: 12.0, attackIntervalMultiplier: 0.8))
-        ]
+        ],
+        synergyGroup: .apexTitans
     ),
     UnitDefinition(
         id: "utahraptor", name: "Utahraptor", era: .cretaceous, sizeClass: .small, rarity: .rare,
         deployCost: 330, baseStats: UnitStats(maxHP: 140, attackDamage: 34, attackIntervalSeconds: 0.9, rangeUnits: 1.0),
         evolutionBranches: [
             EvolutionBranch(id: "slash_hunter", name: "Slash Hunter", statModifiers: StatModifiers(attackDamage: 12), abilityDescription: "Bigger sickle-claw damage.")
-        ]
+        ],
+        synergyGroup: .raptorPack
     ),
     UnitDefinition(
         id: "styracosaurus", name: "Styracosaurus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
         deployCost: 520, baseStats: UnitStats(maxHP: 440, attackDamage: 36, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
         evolutionBranches: [
             EvolutionBranch(id: "spike_crown", name: "Spike Crown", statModifiers: StatModifiers(maxHP: 60, grantsKnockbackResistance: true), abilityDescription: "Reinforced frill, even harder to knock back.")
-        ]
+        ],
+        synergyGroup: .armoredLine
     ),
     UnitDefinition(
         id: "pentaceratops", name: "Pentaceratops", era: .cretaceous, sizeClass: .medium, rarity: .epic,
         deployCost: 600, baseStats: UnitStats(maxHP: 500, attackDamage: 38, attackIntervalSeconds: 1.3, rangeUnits: 1.0, knockbackResistant: true),
         evolutionBranches: [
             EvolutionBranch(id: "five_horn_vanguard", name: "Five-Horn Vanguard", statModifiers: StatModifiers(maxHP: 80, attackDamage: 10), abilityDescription: "All five horns reinforced -- tougher and stronger.")
-        ]
+        ],
+        synergyGroup: .armoredLine
     ),
     UnitDefinition(
         id: "pachycephalosaurus", name: "Pachycephalosaurus", era: .cretaceous, sizeClass: .medium, rarity: .rare,
@@ -529,7 +592,8 @@ let bundledUnits: [UnitDefinition] = [
         evolutionBranches: [
             EvolutionBranch(id: "river_tyrant", name: "River Tyrant", statModifiers: StatModifiers(maxHP: 300, attackDamage: 40), abilityDescription: "Pure apex scaling: more HP, more damage."),
             EvolutionBranch(id: "sail_predator", name: "Sail Predator", statModifiers: StatModifiers(maxHP: -50), abilityDescription: "First attack after deployment deals bonus damage.", ability: .firstHitBonus(damageMultiplier: 2.5))
-        ]
+        ],
+        synergyGroup: .apexTitans
     ),
     UnitDefinition(
         id: "iguanodon", name: "Iguanodon", era: .cretaceous, sizeClass: .medium, rarity: .common,
@@ -676,6 +740,7 @@ final class BattleScene: SKScene, ObservableObject {
     private let enemyBaseLabel = SKLabelNode(fontNamed: "Menlo")
     private let statusLabel = SKLabelNode(fontNamed: "Menlo")
     private let timeLabel = SKLabelNode(fontNamed: "Menlo")
+    private let synergyLabel = SKLabelNode(fontNamed: "Menlo")
 
     override func didMove(to view: SKView) {
         backgroundColor = .black
@@ -699,6 +764,12 @@ final class BattleScene: SKScene, ObservableObject {
         timeLabel.horizontalAlignmentMode = .center
         timeLabel.position = CGPoint(x: size.width / 2, y: size.height - 30)
         addChild(timeLabel)
+
+        synergyLabel.fontSize = 14
+        synergyLabel.fontColor = .systemYellow
+        synergyLabel.horizontalAlignmentMode = .center
+        synergyLabel.position = CGPoint(x: size.width / 2, y: size.height - 55)
+        addChild(synergyLabel)
 
         statusLabel.fontSize = 32
         statusLabel.position = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -853,6 +924,11 @@ final class BattleScene: SKScene, ObservableObject {
         enemyBaseLabel.text = "Enemy Base: \(max(0, lane.enemyBaseHP))"
         let remaining = max(0, Int((matchDurationSeconds - matchElapsedTime).rounded(.up)))
         timeLabel.text = String(format: "Time: %d:%02d", remaining / 60, remaining % 60)
+
+        let activeGroups: [SynergyGroup] = [.raptorPack, .armoredLine, .apexTitans].filter { group in
+            lane.playerUnits.filter { $0.isAlive && $0.definition.synergyGroup == group }.count >= group.requiredCount
+        }
+        synergyLabel.text = activeGroups.isEmpty ? "" : "Synergy: " + activeGroups.map(\.displayName).joined(separator: ", ")
     }
 
     private func checkGameOver() {
@@ -901,8 +977,16 @@ struct RoarFareContentView: View {
     // core Era identity signal already works everywhere else (see ART_BIBLE.md §3.1).
     @State private var selectedEra: Era = .triassic
 
+    // Battle Cats-style loadout: you own the whole roster, but only bring `loadoutCap` units
+    // into any one match -- forces a real pick each game instead of always having full access
+    // to every unit, which is the actual point ("more variety in games"). Defaults to the
+    // first 8 bundled units so there's always a valid starting loadout with no setup required.
+    static let loadoutCap = 10
+    @State private var loadout: Set<String> = Set(bundledUnits.prefix(loadoutCap).map(\.id))
+    @State private var showingLoadoutEditor = false
+
     private var visibleOptions: [DeployOption] {
-        deployOptions.filter { $0.era == selectedEra }
+        deployOptions.filter { $0.era == selectedEra && loadout.contains(bundledUnits[$0.unitIndex].id) }
     }
 
     var body: some View {
@@ -949,6 +1033,17 @@ struct RoarFareContentView: View {
             .padding(.horizontal)
             .padding(.top, 8)
 
+            Button("Edit Loadout (\(loadout.count)/\(Self.loadoutCap))") {
+                showingLoadoutEditor = true
+            }
+            .padding(8)
+            .background(Color.purple.opacity(0.3))
+            .cornerRadius(8)
+            .padding(.top, 4)
+            .sheet(isPresented: $showingLoadoutEditor) {
+                LoadoutEditorView(loadout: $loadout)
+            }
+
             ScrollView(.horizontal) {
                 HStack {
                     ForEach(visibleOptions) { option in
@@ -963,6 +1058,46 @@ struct RoarFareContentView: View {
                     }
                 }
                 .padding()
+            }
+        }
+    }
+}
+
+/// Toggle up to `RoarFareContentView.loadoutCap` units in/out of the loadout. Once the cap is
+/// hit, unselected rows disable themselves rather than silently no-op'ing on tap, so it's clear
+/// *why* nothing happened when you try to add an 11th unit.
+struct LoadoutEditorView: View {
+    @Binding var loadout: Set<String>
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            List(bundledUnits) { unit in
+                let isSelected = loadout.contains(unit.id)
+                let atCap = loadout.count >= RoarFareContentView.loadoutCap
+                Button {
+                    if isSelected {
+                        loadout.remove(unit.id)
+                    } else if !atCap {
+                        loadout.insert(unit.id)
+                    }
+                } label: {
+                    HStack {
+                        Text(unit.name)
+                        Spacer()
+                        if isSelected {
+                            Image(systemName: "checkmark.circle.fill")
+                        }
+                    }
+                }
+                .disabled(!isSelected && atCap)
+                .foregroundColor(isSelected ? .primary : (atCap ? .gray : .primary))
+            }
+            .navigationTitle("Loadout (\(loadout.count)/\(RoarFareContentView.loadoutCap))")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
             }
         }
     }
